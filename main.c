@@ -301,8 +301,6 @@ void results_screen() {
     }
 }
 
-void check_matches_asm();
-
 void game_loop() {
     static unsigned char temp;
     static unsigned char down_pressed;
@@ -314,16 +312,7 @@ void game_loop() {
     game_has_started = 1;
     while (!game_is_over) {
         if (game_paused) {
-            static unsigned char j,i;
-            POKE(0x9F22, 0x20);
-            POKE(0x9F21, 8);
-            for (j = 0; j < 16; ++j) {
-                POKE(0x9F20, 32);
-                for (i = 0; i < 8; ++i) {
-                    POKE(0x9F23, 0);
-                }
-                __asm__ ("inc $9F21");
-            }
+            clear_pillbottle_interior();
             write_string_screen(17, 15, 0, "paused", 6);
             while (!(joystick_get(0) & ST_PRESSED)) {
                 waitforjiffy();
@@ -414,7 +403,7 @@ void game_loop() {
                     grid[pill_y][pill_x] = pill_colors[0];
                     grid[pill_y + (pill_rot & 1)][pill_x + ((pill_rot & 1) ^ 1)] = pill_colors[1];
                     draw_playfield();
-                    check_matches_asm();
+                    check_matches();
                     if (num_viruses_alive == 0 || num_viruses_alive >= 128) {
                         player_won = 1;
                         game_is_over = 1;
@@ -572,14 +561,13 @@ void setup_calc_pills_fall() {
 
 }*/
 
-void calc_falling_pieces();
-void make_pieces_fall();
-
 unsigned char pieces_moved;
+extern unsigned char piece_hit_something;
 
 void pills_fall() {
     static unsigned char j;
 
+    piece_hit_something = 0;
     pieces_moved = 0;
 
     calc_falling_pieces();
@@ -595,7 +583,7 @@ void pills_fall() {
             waitforjiffy();
             draw_playfield();
         }
-    } while (pieces_moved);
+    } while (pieces_moved && !piece_hit_something);
     for (j = 0; j < CASCADE_FALL_FRAMES; ++j) {
         waitforjiffy();
         draw_playfield();
@@ -849,6 +837,19 @@ void move_logo() {
     if (table_index >= LOGO_TABLE_LENGTH) {
         table_index = 0;
         move_direction = !move_direction;
+    }
+}
+
+void clear_pillbottle_interior() {
+    static unsigned char j, i;
+    POKE(0x9F22, 0x20);
+    POKE(0x9F21, 8);
+    for (j = 0; j < 16; ++j) {
+        POKE(0x9F20, 32);
+        for (i = 0; i < 8; ++i) {
+            POKE(0x9F23, 0);
+        }
+        __asm__ ("inc $9F21");
     }
 }
 

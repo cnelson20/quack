@@ -205,6 +205,9 @@ _calc_falling_pieces:
     bcs @loop
     rts
 
+.export _piece_hit_something
+_piece_hit_something:
+    .byte 0
 ;
 ; void make_pieces_fall();
 ;
@@ -221,12 +224,28 @@ _make_pieces_fall:
     clc
     adc #8
     tax
+    adc #8
+    sta tmp1
     lda _grid, X
     bne @second_fail_case
 
     lda #1
     sta _pieces_moved
     sta _fall_grid, X
+
+    cpy #(BOARD_HEIGHT - 1) * BOARD_WIDTH
+    bcs :++
+    phx
+    ldx tmp1
+    lda _grid, X
+    beq :+
+    lda _fall_grid, X
+    bne :+
+    lda #1
+    sta _piece_hit_something
+    :
+    plx
+    :
 
     lda _grid, Y
     sta _grid, X
@@ -240,15 +259,18 @@ _make_pieces_fall:
     bpl @loop
     rts
 
-
+fall_anyway:
+    .byte 0
 ;
 ; void check_matches();
 ;
-.export _check_matches_asm
-_check_matches_asm:
-    ;stp
-
+.export _check_matches
+_check_matches:
+    stz fall_anyway
+    ; TODO : because fall_grid is not cleared on reentry for function,
+    ; an infinite loop occurs when pieces fall
     jsr _setup_calc_pills_fall
+@check_matches_reentry:
     stz @match_found
 
     lda #BOARD_HEIGHT * BOARD_WIDTH - 1
@@ -316,6 +338,7 @@ _check_matches_asm:
     rts
     :
     stz _grid, X
+    stz _fall_grid, X
     dex
     iny
     cpy @size_row
@@ -375,6 +398,7 @@ _check_matches_asm:
     rts
     :
     stz _grid, X
+    stz _fall_grid, X
     txa
     sec
     sbc #8
@@ -397,12 +421,21 @@ _check_matches_asm:
 @end:
 
     lda @match_found
-    beq :+
+    bne :+
+    lda fall_anyway
+    stz fall_anyway
+    cmp #0
+    beq :++
     jsr _pills_fall
-    jmp _check_matches
+    jmp @check_matches_reentry
     :
-
+    jsr _pills_fall
+    lda #1
+    sta fall_anyway
+    jmp @check_matches_reentry
+    :
     rts
+
 
 @match_found:
     .byte 0

@@ -13,4 +13,8 @@ unsigned short joystick_get(unsigned char joynum);
 
 void waitforjiffy();
 
+void check_matches();
+void setup_calc_pills_fall();
 void calc_pills_fall();
+void calc_falling_pieces();
+void make_pieces_fall();

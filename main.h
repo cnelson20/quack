@@ -23,10 +23,6 @@ void spawn_viruses();
 void inc_pill_rot();
 
 unsigned char check_collision(unsigned char x, unsigned char y, unsigned char rot);
-void check_matches();
-
-void setup_calc_pills_fall();
-void pills_fall();
 
 void setup_display();
 void clear_layer1();
@@ -39,6 +35,10 @@ void wait_frames(unsigned short);
 
 void write_num_screen(unsigned char x, unsigned char y, unsigned char palette, unsigned char num);
 void write_string_screen(unsigned char x, unsigned char y, unsigned char palette, char *string, unsigned char str_length);
+
+void pills_fall();
+
+void clear_pillbottle_interior();
 
 void setup_logo();
 void move_logo();
