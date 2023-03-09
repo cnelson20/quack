@@ -564,24 +564,28 @@ void setup_calc_pills_fall() {
 unsigned char pieces_moved;
 extern unsigned char piece_hit_something;
 
-void pills_fall() {
+void pills_fall(unsigned char first_time) {
     static unsigned char j;
+    static unsigned char not_first_iter;
 
     piece_hit_something = 0;
     pieces_moved = 0;
+    not_first_iter = 0;
 
     calc_falling_pieces();
 
-    for (j = 0; j < CASCADE_FALL_FRAMES; ++j) {
+    if (first_time) for (j = 0; j < CASCADE_FALL_FRAMES; ++j) {
         waitforjiffy();
         draw_playfield();
     }
     if (pieces_moved) do {
         pieces_moved = 0;
         make_pieces_fall();
-        for (j = 0; j < CASCADE_FALL_FRAMES; ++j) {
+        if (not_first_iter) for (j = 0; j < CASCADE_FALL_FRAMES; ++j) {
             waitforjiffy();
             draw_playfield();
+        } else {
+            not_first_iter = 1;
         }
     } while (pieces_moved && !piece_hit_something);
     for (j = 0; j < CASCADE_FALL_FRAMES; ++j) {

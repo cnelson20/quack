@@ -36,7 +36,7 @@ void wait_frames(unsigned short);
 void write_num_screen(unsigned char x, unsigned char y, unsigned char palette, unsigned char num);
 void write_string_screen(unsigned char x, unsigned char y, unsigned char palette, char *string, unsigned char str_length);
 
-void pills_fall();
+void __fastcall__ pills_fall(unsigned char first_one);
 
 void clear_pillbottle_interior();
 

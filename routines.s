@@ -97,7 +97,6 @@ _calc_pills_fall:
 @x = tmp3
 @y = tmp2
 @ind = tmp1
-    ;stp
     lda $03
     sta @y
 
@@ -267,168 +266,100 @@ fall_anyway:
 .export _check_matches
 _check_matches:
     stz fall_anyway
-    ; TODO : because fall_grid is not cleared on reentry for function,
-    ; an infinite loop occurs when pieces fall
     jsr _setup_calc_pills_fall
 @check_matches_reentry:
+    stp
     stz @match_found
 
-    lda #BOARD_HEIGHT * BOARD_WIDTH - 1
-    sta @ind
-    lda #BOARD_HEIGHT - 1
-    sta @j
-    lda #BOARD_WIDTH - 1
-    sta @i
-@loop:
-    ldy @ind
+    ldy #BOARD_HEIGHT * BOARD_WIDTH - 1
+@horiz_loop:
+    tya
+    and #7
+    cmp #7
+    beq @is_new
+
     lda _grid, Y
-    bne :+
-    jmp @end_of_loop
-    :
     and #$0f
+    cmp @to_match
+    bne @is_new_ent
+
+    inx
+    txa
+    sta _spare_grid, Y
+    bra @end_horiz_loop
+@is_new:
+    lda _grid, Y
+    and #$0f
+@is_new_ent:
     sta @to_match
+    lda #1
+    ldx #1
+    sta _spare_grid, Y
+@end_horiz_loop:
+    dey
+    bpl @horiz_loop
 
-    ldy #0
-    ldx @ind
-@horiz_check_loop:
-    cpy @i
-    beq :+
-    bcs @end_horiz_check_loop
-    :
-    lda _grid, X
-    and #$0f
-    cmp @to_match
-    bne @end_horiz_check_loop
-    dex
-    iny
-    jmp @horiz_check_loop
-@end_horiz_check_loop:
-    cpy #4
-    bcc @no_horiz_match_4
-    sty @size_row
+    ldy #BOARD_WIDTH * BOARD_HEIGHT - 4
+@check_horiz_loop:
+    lda _grid, Y
+    beq @not_horiz_match
+    lda _spare_grid, Y
+    cmp #4
+    bcc @not_horiz_match
 
-; Found a match, do stuff
+; Found a match
+    sta @size_row
     lda #1
     sta @match_found
+    phy ; push index ;
 
-    ldy #0
+    tya
+    and #7
+    sta $02 ; x = index & %111 (& 7)
+    tya
+    lsr
+    lsr
+    lsr
+    sta $03 ; y = index >> 3 (div 8)
+    ldx #0
     :
-    sty $02
-    lda @i
-    sec
-    sbc $02
-    sta $02
-    lda @j
-    sta $03
-    phy
-    jsr _calc_pills_fall
-    ply
-    iny
-    cpy @size_row
-    bcc :-
-
-    ldy #0
-    ldx @ind
-    :
-    lda _grid, X
-    and #$10
-    beq :+
-    dec _num_viruses_alive
-    bne :+
-    rts
-    :
-    stz _grid, X
-    stz _fall_grid, X
-    dex
-    iny
-    cpy @size_row
-    bcc :--
-@no_horiz_match_4:
-
-    ldy #0
-    ldx @ind
-@vert_check_loop:
-    cpy @j
-    beq :+
-    bcs @end_vert_check_loop
-    :
-    lda _grid, X
-    and #$0f
-    cmp @to_match
-    bne @end_vert_check_loop
-
-    txa
-    sec
-    sbc #8
-    tax
-    iny
-    jmp @vert_check_loop
-@end_vert_check_loop:
-    cpy #4
-    bcc @no_vert_match_4
-    sty @size_row
-
-    lda #1
-    sta @match_found
-
-    ldy #0
-    ldx @j
-    :
-    lda @i
-    sta $02
-    stx $03
     phx
-    phy
     jsr _calc_pills_fall
-    ply
+    inc $02
     plx
-    dex
-    iny
-    cpy @size_row
+    inx
+    cpx @size_row
     bcc :-
 
-    ldy #0
-    ldx @ind
+    ply ; pull index ;
+    phy ; push again ;
+    ldx #0
+    lda #0
     :
-    lda _grid, X
-    and #$10
-    beq :+
-    dec _num_viruses_alive
-    bne :+
-    rts
-    :
-    stz _grid, X
-    stz _fall_grid, X
-    txa
-    sec
-    sbc #8
-    tax
+    sta _grid, Y
     iny
-    cpy @size_row
-    bcc :--
-@no_vert_match_4:
+    inx
+    cpx @size_row
+    bcc :-
+    ply ; pull one last time ;
+@not_horiz_match:
+    dey
+    bpl @check_horiz_loop
 
-@end_of_loop:
-    dec @ind
-    dec @i
-    bpl :+
-    lda #BOARD_WIDTH - 1
-    sta @i
-    dec @j
-    bmi @end
-    :
-    jmp @loop
 @end:
-
     lda @match_found
     bne :+
     lda fall_anyway
     stz fall_anyway
     cmp #0
     beq :++
+    lda #0
+    tax
     jsr _pills_fall
     jmp @check_matches_reentry
     :
+    lda #1
+    ldx #0
     jsr _pills_fall
     lda #1
     sta fall_anyway
@@ -449,3 +380,6 @@ _check_matches:
     .byte 0
 @i:
     .byte 0
+.export _spare_grid
+_spare_grid := $9000
+    .res (BOARD_WIDTH * BOARD_HEIGHT)
