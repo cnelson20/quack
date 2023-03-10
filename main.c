@@ -23,6 +23,8 @@
 #define VIRUS_DRAW_FRAMES 6
 #define FRAMES_PER_SECOND 60
 
+unsigned char joystick_num;
+
 unsigned char grid[BOARD_HEIGHT][BOARD_WIDTH];
 unsigned char fall_grid[BOARD_HEIGHT][BOARD_WIDTH];
 
@@ -75,6 +77,8 @@ void setup_rand();
 
 int main() {
     ROM_BANK = 0;
+    joystick_num = 0;
+
     load_graphics();
     setup_display();
 
@@ -143,7 +147,7 @@ void menu() {
             write_string_screen(14, 20, 0, "press  start", 12);
 
             // wait for no key presses
-            while ((joystick_get(0) & 0xff) != 0xff) {
+            while ((joystick_get(joystick_num) & 0xff) != 0xff) {
                 move_logo();
                 waitforjiffy();
             }
@@ -151,7 +155,7 @@ void menu() {
             do {
                 static unsigned char i;
                 for (i = 0; i < 5; ++i) {
-                    start_game = start_game & joystick_get(0);
+                    start_game = start_game & joystick_get(joystick_num);
                     move_logo();
                     waitforjiffy();
                 }
@@ -203,6 +207,8 @@ unsigned char settings_menu() {
 
     setup_settings_background();
 
+    menu_row = 0;
+
     left_cool = 0;
     right_cool = 0;
     up_cool = 0;
@@ -212,7 +218,7 @@ unsigned char settings_menu() {
     write_string_screen(6, 15, 0, difficulty_string, DIFF_STRING_LENGTH);
     write_string_screen(11, 23, 0, music_string, MUSIC_STRING_LENGTH);
     display_settings();
-    while ((joystick_get(0) & 0xff) != 0xff);
+    while ((joystick_get(joystick_num) & 0xff) != 0xff);
     while (1) {
         static unsigned char temp, i;
         display_settings();
@@ -237,7 +243,7 @@ unsigned char settings_menu() {
 
         waitforjiffy();
 
-        joystick_input = joystick_get(0);
+        joystick_input = joystick_get(joystick_num);
         if (!right_cool && !(joystick_input & RT_PRESSED)) {
             if (menu_row == 0 && level < 20) {
                 ++level;
@@ -293,12 +299,34 @@ unsigned char settings_menu() {
 }
 
 void results_screen() {
+    clear_pillbottle_interior();
     if (player_won) {
         // win
+        write_string_screen(18, 12, 0, "level", 5);
+        write_string_screen(17, 13, 0, "clear!", 6);
+
+        write_string_screen(18, 15, 0, "time", 4);
+        write_string_screen(19, 16, 0, ":", 1);
+        write_num_screen(17, 16, 0, game_time_units[2]);
+        if (game_time_units[2] < 10) {
+            POKE(0x9F20, 17 << 1);
+            POKE(0x9F21, 16);
+            POKE(0x9F22, 0x00);
+            POKE(0x9F23, 0xA0);
+        }
+        write_num_screen(20, 16, 0, game_time_units[1]);
+
+
         ++level;
     } else {
+        write_string_screen(18, 12, 0, "game", 4);
+        write_string_screen(18, 13, 0, "over", 4);
         // game over
     }
+    write_string_screen(17, 20, 0, "press", 5);
+    write_string_screen(17, 21, 0, "start", 5);
+    while (joystick_get(joystick_num) & ST_PRESSED) { waitforjiffy(); }
+    while (!(joystick_get(joystick_num) & ST_PRESSED)) { waitforjiffy(); }
 }
 
 void game_loop() {
@@ -314,13 +342,13 @@ void game_loop() {
         if (game_paused) {
             clear_pillbottle_interior();
             write_string_screen(17, 15, 0, "paused", 6);
-            while (!(joystick_get(0) & ST_PRESSED)) {
+            while (!(joystick_get(joystick_num) & ST_PRESSED)) {
                 waitforjiffy();
             }
-            while (joystick_get(0) & ST_PRESSED) {
+            while (joystick_get(joystick_num) & ST_PRESSED) {
                 waitforjiffy();
             }
-            while (!(joystick_get(0) & ST_PRESSED)) {
+            while (!(joystick_get(joystick_num) & ST_PRESSED)) {
                 waitforjiffy();
             }
             waitforjiffy();
@@ -349,7 +377,7 @@ void game_loop() {
             }
         } else {
             static unsigned char joystick_input;
-            joystick_input = joystick_get(0);
+            joystick_input = joystick_get(joystick_num);
             POKEW(0x0a, joystick_input);
             POKEW(0x08, num_viruses_alive);
 
@@ -723,6 +751,8 @@ void write_string_screen(unsigned char x, unsigned char y, unsigned char palette
 #define BACKGROUND_WIDTH_64 4
 #define BACKGROUND_HEIGHT_32 3
 
+unsigned char palette_offsets_background[3] = {0xB1, 0xB0, 0xB3};
+
 void setup_settings_background() {
     static unsigned char i,j;
     static unsigned short temp;
@@ -744,7 +774,7 @@ void setup_settings_background() {
             __asm__ ("lda %v + 1", temp);
             __asm__ ("sta $9F23");
             POKE(0x9F23, 0x08);
-            POKE(0x9F23, 0xB0 | (j + 1));
+            POKE(0x9F23, palette_offsets_background[j]);
         }
     }
 }
