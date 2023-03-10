@@ -996,8 +996,8 @@ void draw_pillbottle() {
 #define PALETTE_FILELEN 512
 #define LOAD_ADDRESS 0xA000
 
-#define TITLE_BACKGROUND_BANK 8
-#define GAME_BACKGROUND_BANK 16
+#define TITLE_BACKGROUND_BANK 4
+#define GAME_BACKGROUND_BANK 9
 
 void load_graphics() {
 	cbm_k_setnam("dr.bin");
