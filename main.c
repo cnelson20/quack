@@ -566,11 +566,11 @@ extern unsigned char piece_hit_something;
 
 void pills_fall(unsigned char first_time) {
     static unsigned char j;
-    static unsigned char not_first_iter;
+    static unsigned char first_iter;
 
     piece_hit_something = 0;
     pieces_moved = 0;
-    not_first_iter = 0;
+    first_iter = 2;
 
     calc_falling_pieces();
 
@@ -581,14 +581,15 @@ void pills_fall(unsigned char first_time) {
     if (pieces_moved) do {
         pieces_moved = 0;
         make_pieces_fall();
-        if (not_first_iter) for (j = 0; j < CASCADE_FALL_FRAMES; ++j) {
+        for (j = 0; j < CASCADE_FALL_FRAMES; ++j) {
             waitforjiffy();
             draw_playfield();
-        } else {
-            not_first_iter = 1;
+        }
+        if (first_iter)  {
+            --first_iter;
         }
     } while (pieces_moved && !piece_hit_something);
-    for (j = 0; j < CASCADE_FALL_FRAMES; ++j) {
+    if (!first_iter) for (j = 0; j < CASCADE_FALL_FRAMES; ++j) {
         waitforjiffy();
         draw_playfield();
     }

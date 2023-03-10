@@ -268,7 +268,6 @@ _check_matches:
     stz fall_anyway
     jsr _setup_calc_pills_fall
 @check_matches_reentry:
-    stp
     stz @match_found
 
     ldy #BOARD_HEIGHT * BOARD_WIDTH - 1
@@ -299,7 +298,7 @@ _check_matches:
     dey
     bpl @horiz_loop
 
-    ldy #BOARD_WIDTH * BOARD_HEIGHT - 4
+    ldy #0
 @check_horiz_loop:
     lda _grid, Y
     beq @not_horiz_match
@@ -333,18 +332,129 @@ _check_matches:
 
     ply ; pull index ;
     phy ; push again ;
-    ldx #0
-    lda #0
+    ldx @size_row
+
     :
+    lda _grid, Y
+    and #$10
+    beq :+
+    dec _num_viruses_alive
+    rts
+    :
+    lda #0
     sta _grid, Y
+    sta _spare_grid, Y
     iny
+    dex
+    bne :--
+    ply ; pull one last time ;
+    lda _num_viruses_alive
+    bne @not_horiz_match
+    rts
+@not_horiz_match:
+    iny
+    cpy #BOARD_HEIGHT * BOARD_WIDTH
+    bcc @check_horiz_loop
+
+    ldy #BOARD_HEIGHT * BOARD_WIDTH - 1
+    bra @is_new_vert
+@vert_loop:
+    lda _grid, Y
+    and #$0f
+    cmp @to_match
+    bne @is_new_vert_ent
+
+    inx
+    txa
+    sta _spare_grid, Y
+    bra @end_vert_loop
+@is_new_vert:
+    lda _grid, Y
+    and #$0f
+@is_new_vert_ent:
+    sta @to_match
+    lda #1
+    ldx #1
+    sta _spare_grid, Y
+@end_vert_loop:
+    tya
+    sec
+    sbc #8
+    bcs :+
+    cpy #0
+    beq @vert_loop_done
+    tya
+    dec A
+    ora #$78
+    pha
+    ldx #0
+    tay
+    lda _grid, Y
+    sta @to_match
+    pla
+    :
+    tay
+    jmp @vert_loop
+@vert_loop_done:
+
+    ldy #0
+@vert_check_loop:
+    lda _grid, Y
+    beq @not_vert_match
+    lda _spare_grid, Y
+    cmp #4
+    bcc @not_vert_match
+
+; Found a match
+    sta @size_row
+    lda #1
+    sta @match_found
+    phy ; push index
+
+    tya
+    and #7
+    sta $02
+    tya
+    lsr
+    lsr
+    lsr
+    sta $03
+    ldx #0
+    :
+    phx
+    jsr _calc_pills_fall
+    inc $03
+    plx
     inx
     cpx @size_row
     bcc :-
-    ply ; pull one last time ;
-@not_horiz_match:
-    dey
-    bpl @check_horiz_loop
+
+    ply
+    phy ; pull and push
+    ldx @size_row
+    :
+    lda _grid, Y
+    and #$10
+    beq :+
+    dec _num_viruses_alive
+    :
+    lda #0
+    sta _grid, Y
+    sta _spare_grid, Y
+    tya
+    clc
+    adc #8
+    tay
+    dex
+    bne :--
+    ply
+    lda _num_viruses_alive
+    bne @not_vert_match
+    rts
+@not_vert_match:
+    iny
+    cpy #BOARD_WIDTH * BOARD_HEIGHT
+    bcc @vert_check_loop
 
 @end:
     lda @match_found
