@@ -10,6 +10,9 @@
 #define RED_TILE 2
 #define YELLOW_TILE 3
 
+#define PILL_ANIM_1 0x11
+#define PILL_ANIM_2 0x12
+
 #define DIFF_EASY 0
 #define DIFF_MED 1
 #define DIFF_HARD 2
@@ -379,7 +382,6 @@ void game_loop() {
             static unsigned char joystick_input;
             joystick_input = joystick_get(joystick_num);
             POKEW(0x0a, joystick_input);
-            POKEW(0x08, num_viruses_alive);
 
             if (!right_cool && !(joystick_input & RT_PRESSED)) {
                 temp = pill_x + ((pill_rot % 2) ^ 1) + 1; // temp = pill_x + pill_width
@@ -430,7 +432,7 @@ void game_loop() {
                     pill_is_falling = 0;
                     grid[pill_y][pill_x] = pill_colors[0];
                     grid[pill_y + (pill_rot & 1)][pill_x + ((pill_rot & 1) ^ 1)] = pill_colors[1];
-                    draw_playfield();
+
                     check_matches();
                     if (num_viruses_alive == 0 || num_viruses_alive >= 128) {
                         player_won = 1;
@@ -447,8 +449,8 @@ void game_loop() {
             } else {
                 last_chance = 0;
             }
+            draw_playfield();
         }
-        draw_playfield();
         waitforjiffy();
         --frame_count;
     }
@@ -460,7 +462,7 @@ void game_loop() {
 void inc_pill_rot() {
     static unsigned char temp;
     ++pill_rot;
-    if ((pill_rot & 3) == 2) {
+    if ((pill_rot & 1) == 0) {
         temp = pill_colors[0];
         pill_colors[0] = pill_colors[1];
         pill_colors[1] = temp;
@@ -630,6 +632,26 @@ void wait_frames(unsigned short num_frames) {
     }
 }
 
+#define FUNCTION_FALL_FRAMES (10)
+
+/*
+void wait_cascade_fall_frames() {
+    static unsigned char i;
+
+    draw_pill_anyway = PILL_ANIM_1;
+    for (i = FUNCTION_FALL_FRAMES; i; --i) {
+        waitforjiffy();
+        draw_playfield();
+    }
+    draw_pill_anyway = PILL_ANIM_2;
+    for (i = FUNCTION_FALL_FRAMES; i; --i) {
+        waitforjiffy();
+        draw_playfield();
+    }
+    draw_pill_anyway = 0;
+}
+*/
+
 
 void setup_display() {
     VERA.control = 0;
@@ -676,33 +698,32 @@ void draw_playfield() {
         POKE(0x9F20, 32 /* 16 << 1 */);
         for (i = 0; i < BOARD_WIDTH; ++i) {
             temp = grid[j][i];
-            POKE(0x9F23, ((temp & 0xf0) ? curr_virus_offset : 0x0f) + (temp & 0xf));
+            POKE(0x9F23, temp ? ((temp & 0xf0) ? (curr_virus_offset + (temp & 0x3)) : 0x10) : 0x0f);
             POKE(0x9F23, temp << 4);
         }
         __asm__ ("inc $9F21");
     }
 
+    POKEW(0x0c, pill_rot);
     if (pill_is_falling) {
         POKE(0x9F20, 32 + (pill_x << 1));
         POKE(0x9F21, 8 + pill_y);
-        POKE(0x9F23, 0xf + pill_colors[0]);
+        POKE(0x9F23, 0xb + ((pill_rot & 1) << 1));
         POKE(0x9F23, pill_colors[0] << 4);
         if (pill_rot % 2) {
             POKE(0x9F20, PEEK(0x9F20) - 2);
             __asm__ ("inc $9F21");
         }
-        POKE(0x9F23, 0xf + pill_colors[1]);
+        POKE(0x9F23, 0xc + ((pill_rot & 1) << 1));
         POKE(0x9F23, pill_colors[1] << 4);
     }
     if (game_has_started) {
         POKE(0x9F20, 0x26);
         POKE(0x9F21, 4);
 
-        POKE(0x0c, next_pill_colors[0]);
-        POKE(0x0d, next_pill_colors[1]);
-        POKE(0x9F23, 0xf + next_pill_colors[0]);
+        POKE(0x9F23, 0xb);
         POKE(0x9F23, next_pill_colors[0] << 4);
-        POKE(0x9F23, 0xf + next_pill_colors[1]);
+        POKE(0x9F23, 0xc);
         POKE(0x9F23, next_pill_colors[1] << 4);
     }
 }

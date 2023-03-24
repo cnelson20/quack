@@ -7,11 +7,16 @@ BOARD_HEIGHT = 16
 
 .importzp tmp1, tmp2, tmp3
 
+; Imported functions from cc65
 .import _srand, _rand
 .import popa, popax
 
+; Imported functions from main.c
 .import _pills_fall, _setup_calc_pills_fall
+.import _wait_cascade_fall_frames
 
+; Imported variables & arrays
+.import _pill_rot
 .import _fall_grid, _grid
 .import _pieces_moved
 .import _frame_tick
@@ -490,6 +495,7 @@ _check_matches:
     .byte 0
 @i:
     .byte 0
+
 .export _spare_grid
-_spare_grid := $9000
+_spare_grid:
     .res (BOARD_WIDTH * BOARD_HEIGHT)
