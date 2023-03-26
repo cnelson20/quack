@@ -403,7 +403,7 @@ void game_loop() {
                 --left_cool;
             }
 
-            if (!up_cool && !(joystick_input & UP_PRESSED) && !check_collision(pill_x, pill_y, (pill_rot + 1) % 4)) {
+            if (!up_cool && (!(joystick_input & UP_PRESSED) || !(joystick_input & A_PRESSED)) && !check_collision(pill_x, pill_y, (pill_rot + 1) % 4)) {
                 if ((pill_rot % 2) && pill_x + 1 >= BOARD_WIDTH) {
                     if (!check_collision(pill_x - 1, pill_y, (pill_rot + 1) % 4)) {
                         inc_pill_rot();
@@ -414,7 +414,7 @@ void game_loop() {
                     inc_pill_rot();
                     up_cool = 1;
                 }
-            } else if (joystick_input & UP_PRESSED) { // up not pressed
+            } else if ((joystick_input & (UP_PRESSED | A_PRESSED)) == (UP_PRESSED | A_PRESSED)) { // up not pressed
                 up_cool = 0;
             }
             down_pressed = !(joystick_input & DOWN_PRESSED) ? 1 : 0;
