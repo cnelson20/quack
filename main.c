@@ -506,7 +506,7 @@ void spawn_viruses() {
         static unsigned char x,y;
         static unsigned char min_row;
         static unsigned char virus_color;
-        static unsigned char colors_found[3];
+        static unsigned char colors_found[4];
 
         spawn_viruses_start:
 
@@ -534,10 +534,11 @@ void spawn_viruses() {
         if (virus_color == 3) {
             virus_color = virus_color_tables[rand_byte() & 0xf];
         }
+        ++virus_color;
         // Step 7
-        colors_found[0] = 0;
         colors_found[1] = 0;
         colors_found[2] = 0;
+        colors_found[3] = 0;
         if (x < (BOARD_WIDTH - 2) && grid[y][x + 2]) {
             colors_found[grid[y][x + 2] & 0xf] = 1;
         }
@@ -551,16 +552,16 @@ void spawn_viruses() {
             colors_found[grid[y][x - 2] & 0xf] = 1;
         }
 
-        if (colors_found[0] && colors_found[1] && colors_found[2]) {
+        if (colors_found[1] && colors_found[2] && colors_found[3]) {
             goto step_7_1;
         }
         while (colors_found[virus_color]) {
             ++virus_color;
-            if (virus_color == 3) { virus_color = 0; }
+            if (virus_color > 3) { virus_color = 1; }
         }
 
-        grid[y][x] = 0x10 | (virus_color + 1);
-        ++alive_virus_colors[virus_color + 1];
+        grid[y][x] = 0x10 | (virus_color);
+        ++alive_virus_colors[virus_color];
         --num_viruses;
         draw_playfield();
         wait_frames(VIRUS_DRAW_FRAMES);
