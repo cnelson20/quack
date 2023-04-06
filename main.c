@@ -58,7 +58,10 @@ unsigned char difficulty = DIFF_EASY;
 unsigned char music_on = 1;
 
 unsigned char pill_num;
+
 unsigned char num_viruses_alive;
+unsigned char alive_virus_colors[4];
+
 unsigned char num_speed_ups;
 unsigned char frames_fall_index;
 
@@ -163,7 +166,6 @@ void menu() {
                     waitforjiffy();
                 }
             } while (start_game & ST_PRESSED);
-            disable_logo();
         }
         clear_layer1();
 
@@ -208,6 +210,7 @@ unsigned char settings_menu() {
     static unsigned char joystick_input;
     static unsigned char menu_row;
 
+    disable_logo();
     setup_settings_background();
 
     menu_row = 0;
@@ -338,6 +341,7 @@ void game_loop() {
 
     setup_playfield();
     game_setup();
+    print_stats();
     frame_count = frames_fall_table[frames_fall_index];
 
     game_has_started = 1;
@@ -494,6 +498,9 @@ void spawn_viruses() {
     num_viruses = (level + 1) << 2;
     if (level == 20) { num_viruses -= 4; }
     num_viruses_alive = num_viruses;
+    alive_virus_colors[1] = 0;
+    alive_virus_colors[2] = 0;
+    alive_virus_colors[3] = 0;
 
     while (num_viruses > 0) {
         static unsigned char x,y;
@@ -553,6 +560,7 @@ void spawn_viruses() {
         }
 
         grid[y][x] = 0x10 | (virus_color + 1);
+        ++alive_virus_colors[virus_color + 1];
         --num_viruses;
         draw_playfield();
         wait_frames(VIRUS_DRAW_FRAMES);
@@ -601,6 +609,8 @@ void pills_fall(unsigned char first_time) {
     piece_hit_something = 0;
     pieces_moved = 0;
     first_iter = 2;
+
+    update_virus_count();
 
     calc_falling_pieces();
 
@@ -680,6 +690,7 @@ void clear_layer1() {
 }
 
 void setup_playfield() {
+    setup_game_sprites();
     load_game_background();
     clear_layer1();
     draw_pillbottle();
@@ -726,6 +737,20 @@ void draw_playfield() {
         POKE(0x9F23, 0xc);
         POKE(0x9F23, next_pill_colors[1] << 4);
     }
+}
+
+void update_virus_count() {
+    write_num_screen(31, 25, 0xa, num_viruses_alive);
+}
+
+void print_stats() {
+    static unsigned char d;
+
+    d = difficulty & 1;
+    write_num_screen(31, 19, 0xa, level);
+    write_string_screen(31, 22, 0xa, difficulty_strings[difficulty] + 2 - d, 4 - d);
+
+    update_virus_count();
 }
 
 void write_num_screen(unsigned char x, unsigned char y, unsigned char palette, unsigned char num) {
@@ -906,6 +931,83 @@ void clear_pillbottle_interior() {
             POKE(0x9F23, 0);
         }
         __asm__ ("inc $9F21");
+    }
+}
+
+#define DR_SPR_ADDR 0x11E00
+#define BLUE_SPR_ADDR 0x12600
+#define RED_SPR_ADDR 0x12800
+#define YEL_SPR_ADDR 0x12A00
+
+#define DR_PALETTE 7
+#define BLUE_SPR_PALETTE 8
+#define RED_SPR_PALETTE 9
+#define YEL_SPR_PALETTE 0xa
+
+#define DR_SPR_X 231
+#define DR_SPR_Y 62
+
+#define BLUE_SPR_X 57
+#define BLUE_SPR_Y 169
+
+#define RED_SPR_X 27
+#define RED_SPR_Y 172
+
+#define YEL_SPR_X 40
+#define YEL_SPR_Y 142
+
+
+void setup_game_sprites() {
+    POKE(0x9F22, 0x11);
+    POKE(0x9F21, 0xFC);
+    POKE(0x9F20, 0x08);
+
+    POKE(0x9F23, (DR_SPR_ADDR >> 5));
+    POKE(0x9F23, (DR_SPR_ADDR >> 13));
+    POKE(0x9F23, DR_SPR_X);
+    POKE(0x9F23, DR_SPR_X >> 8);
+    POKE(0x9F23, DR_SPR_Y);
+    POKE(0x9F23, DR_SPR_Y >> 8);
+    POKE(0x9F23, 0x0C); // z-depth of 3
+    POKE(0x9F23, 0xF0 | DR_PALETTE);
+
+    POKE(0x9F23, (BLUE_SPR_ADDR >> 5));
+    POKE(0x9F23, (BLUE_SPR_ADDR >> 13));
+    POKE(0x9F23, BLUE_SPR_X);
+    POKE(0x9F23, 0);
+    POKE(0x9F23, BLUE_SPR_Y);
+    POKE(0x9F23, 0);
+    POKE(0x9F23, 0x0C);
+    POKE(0x9F23, 0xA0 | BLUE_SPR_PALETTE);
+
+    POKE(0x9F23, (RED_SPR_ADDR >> 5));
+    POKE(0x9F23, (RED_SPR_ADDR >> 13));
+    POKE(0x9F23, RED_SPR_X);
+    POKE(0x9F23, 0);
+    POKE(0x9F23, RED_SPR_Y);
+    POKE(0x9F23, 0);
+    POKE(0x9F23, 0x0C);
+    POKE(0x9F23, 0xA0 | RED_SPR_PALETTE);
+
+    POKE(0x9F23, (YEL_SPR_ADDR >> 5));
+    POKE(0x9F23, (YEL_SPR_ADDR >> 13));
+    POKE(0x9F23, YEL_SPR_X);
+    POKE(0x9F23, 0);
+    POKE(0x9F23, YEL_SPR_Y);
+    POKE(0x9F23, 0);
+    POKE(0x9F23, 0x0C);
+    POKE(0x9F23, 0xA0 | YEL_SPR_PALETTE);
+}
+
+void animate_viruses() {
+    static unsigned char i;
+    POKE(0x9F22, 0x11);
+    POKE(0x9F21, 0xFC);
+    if (game_has_started) for (i = 1; i < 4; ++i) {
+        if (!alive_virus_colors[i]) {
+            POKE(0x9F20, 0xe + (i << 3));
+            POKE(0x9F23, 0);
+        }
     }
 }
 

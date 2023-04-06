@@ -44,6 +44,12 @@ void setup_logo();
 void move_logo();
 void disable_logo();
 
+void setup_game_sprites();
+void animate_viruses();
+
+void update_virus_count();
+void print_stats();
+
 void load_graphics();
 void load_game_background();
 void load_title_background();

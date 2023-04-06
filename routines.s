@@ -14,6 +14,7 @@ BOARD_HEIGHT = 16
 ; Imported functions from main.c
 .import _pills_fall, _setup_calc_pills_fall
 .import _wait_cascade_fall_frames
+.import _animate_viruses
 
 ; Imported variables & arrays
 .import _pill_rot
@@ -23,6 +24,7 @@ BOARD_HEIGHT = 16
 .import _game_time_units
 .import _game_paused
 .import _num_viruses_alive
+.import _alive_virus_colors
 
 RDTIM = $FFDE
 entropy_get := $FECF
@@ -66,6 +68,8 @@ sta tmp1
 jsr RDTIM
 cmp tmp1
 beq :-
+
+jsr _animate_viruses
 
 lda _game_paused
 beq @incrementGameTimers
@@ -344,6 +348,12 @@ _check_matches:
     and #$10
     beq :+
     dec _num_viruses_alive
+    lda _grid, Y
+    and #$03
+    phx
+    tax
+    dec _alive_virus_colors, X
+    plx
     rts
     :
     lda #0
@@ -442,6 +452,12 @@ _check_matches:
     and #$10
     beq :+
     dec _num_viruses_alive
+    lda _grid, Y
+    and #$03
+    phx
+    tax
+    dec _alive_virus_colors, X
+    plx
     :
     lda #0
     sta _grid, Y
