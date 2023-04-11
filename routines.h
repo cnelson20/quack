@@ -18,3 +18,7 @@ void setup_calc_pills_fall();
 void calc_pills_fall();
 void calc_falling_pieces();
 void make_pieces_fall();
+
+#define DISPLAY_CURRENT 0
+#define DISPLAY_TOP 1
+void __fastcall__ display_score(unsigned char);

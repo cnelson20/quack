@@ -41,8 +41,7 @@ void __fastcall__ pills_fall(unsigned char first_one);
 void clear_pillbottle_interior();
 
 void setup_logo();
-void move_logo();
-void disable_logo();
+void disable_sprites();
 
 void setup_game_sprites();
 void animate_viruses();
@@ -53,6 +52,7 @@ void print_stats();
 void load_graphics();
 void load_game_background();
 void load_title_background();
+void animate_menu_background();
 
 void load_bitmap_into_vram(unsigned char startbank);
 void load_ram_banks_vram(unsigned char startbank, unsigned char endbank, unsigned short lastaddr);

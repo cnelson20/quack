@@ -59,6 +59,9 @@ unsigned char music_on = 1;
 
 unsigned char pill_num;
 
+extern unsigned long score;
+extern unsigned long top_score;
+
 unsigned char num_viruses_alive;
 unsigned char alive_virus_colors[4];
 
@@ -88,6 +91,7 @@ int main() {
     load_graphics();
     setup_display();
 
+    top_score = 0;
     level = 0;
     difficulty = DIFF_EASY;
     game_is_over = 0;
@@ -118,6 +122,8 @@ void game_setup() {
     frames_fall_index = frames_fall_start_indexes[difficulty];
     num_speed_ups = 0;
 
+    score = 0;
+
     for (i = 0; i < 3; ++i) {
         game_time_units[i] = 0;
     }
@@ -137,6 +143,10 @@ void game_setup() {
 
     spawn_viruses();
     gen_pill_colors();
+
+    display_score(DISPLAY_TOP);
+    display_score(DISPLAY_CURRENT);
+    print_stats();
 }
 
 
@@ -150,11 +160,11 @@ void menu() {
         if (!game_is_over) {
             clear_layer1();
             setup_logo();
-            write_string_screen(14, 20, 0, "press  start", 12);
+            write_string_screen(14, 23, 0, "press  start", 12);
 
             // wait for no key presses
             while ((joystick_get(joystick_num) & 0xff) != 0xff) {
-                move_logo();
+                animate_menu_background();
                 waitforjiffy();
             }
             start_game = 0xFF;
@@ -162,7 +172,7 @@ void menu() {
                 static unsigned char i;
                 for (i = 0; i < 5; ++i) {
                     start_game = start_game & joystick_get(joystick_num);
-                    move_logo();
+                    animate_menu_background();
                     waitforjiffy();
                 }
             } while (start_game & ST_PRESSED);
@@ -171,7 +181,7 @@ void menu() {
 
         game_is_over = 0;
         start_game = settings_menu();
-        disable_logo();
+        disable_sprites();
     } while (start_game == 0);
 
 }
@@ -210,7 +220,7 @@ unsigned char settings_menu() {
     static unsigned char joystick_input;
     static unsigned char menu_row;
 
-    disable_logo();
+    disable_sprites();
     setup_settings_background();
 
     menu_row = 0;
@@ -224,7 +234,10 @@ unsigned char settings_menu() {
     write_string_screen(6, 15, 0, difficulty_string, DIFF_STRING_LENGTH);
     write_string_screen(11, 23, 0, music_string, MUSIC_STRING_LENGTH);
     display_settings();
-    while ((joystick_get(joystick_num) & 0xff) != 0xff);
+    while ((joystick_get(joystick_num) & 0xff) != 0xff) {
+        animate_menu_background();
+        waitforjiffy();
+    }
     while (1) {
         static unsigned char temp, i;
         display_settings();
@@ -247,6 +260,7 @@ unsigned char settings_menu() {
             }
         }
 
+        animate_menu_background();
         waitforjiffy();
 
         joystick_input = joystick_get(joystick_num);
@@ -307,6 +321,12 @@ unsigned char settings_menu() {
 void results_screen() {
     clear_pillbottle_interior();
     if (player_won) {
+        update_virus_count();
+        display_score(DISPLAY_CURRENT);
+        if (score > top_score) {
+            top_score = score;
+            display_score(DISPLAY_TOP);
+        }
         // win
         write_string_screen(18, 12, 0, "level", 5);
         write_string_screen(17, 13, 0, "clear!", 6);
@@ -341,7 +361,6 @@ void game_loop() {
 
     setup_playfield();
     game_setup();
-    print_stats();
     frame_count = frames_fall_table[frames_fall_index];
 
     game_has_started = 1;
@@ -612,6 +631,11 @@ void pills_fall(unsigned char first_time) {
     first_iter = 2;
 
     update_virus_count();
+    display_score(DISPLAY_CURRENT);
+    if (score > top_score) {
+        top_score = score;
+        display_score(DISPLAY_TOP);
+    }
 
     calc_falling_pieces();
 
@@ -677,8 +701,7 @@ void setup_display() {
     VERA.layer1.hscroll = 0x00;
     VERA.layer1.vscroll = 0x00;
 
-    VERA.layer0.config = 0x6;
-    VERA.layer0.tilebase = 0x10;
+    VERA.layer0.mapbase = 0x10;
 }
 
 void clear_layer1() {
@@ -847,7 +870,7 @@ void setup_logo() {
             __asm__ ("sta $9F23");
             __asm__ ("lda %v + 1", temp);
             __asm__ ("sta $9F23");
-            temp = 24 + (j << 5);
+            temp = 0 + (j << 5);
             __asm__ ("lda %v", temp);
             __asm__ ("sta $9F23");
             __asm__ ("lda %v + 1", temp);
@@ -858,14 +881,33 @@ void setup_logo() {
             ++index;
         }
     }
+
+    POKEW(0x9F20, 0xFD00);
+    for (i = 0; i < 4; ++i) {
+        temp = 0x3200 + (i << 11);
+        POKE(0x9F23, temp >> 5);
+        POKE(0x9F23, 0x08 | (temp >> 13));
+        temp = 96 + ((i & 1) << 6);
+        __asm__ ("lda %v", temp);
+        __asm__ ("sta $9F23");
+        __asm__ ("lda %v + 1", temp);
+        __asm__ ("sta $9F23");
+        temp = 56 + ((i & 2) << 5);
+        __asm__ ("lda %v", temp);
+        __asm__ ("sta $9F23");
+        __asm__ ("lda %v + 1", temp);
+        __asm__ ("sta $9F23");
+        POKE(0x9F23, 0x0C);
+        POKE(0x9F23, 0xFB); // 64 x 64, palette offset 0xb
+    }
 }
 
-void disable_logo() {
+void disable_sprites() {
     static unsigned char i;
 
     POKEW(0x9F20, 0xFC0E);
     POKE(0x9F22, 0x41);
-    for (i = 1; i; ++i) {
+    for (i = 0x81; i; ++i) {
         POKE(0x9F23, 0);
     }
 }
@@ -875,6 +917,7 @@ unsigned char logo_mvmt_table[LOGO_TABLE_LENGTH] = {
         0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 0, 0,
 };
 
+/*
 void move_logo() {
     static unsigned char i;
     static unsigned char table_index = LOGO_TABLE_LENGTH >> 1;
@@ -921,6 +964,7 @@ void move_logo() {
         move_direction = !move_direction;
     }
 }
+ */
 
 void clear_pillbottle_interior() {
     static unsigned char j, i;
@@ -1002,10 +1046,19 @@ void setup_game_sprites() {
 
 void animate_viruses() {
     static unsigned char i;
+    static unsigned short temp;
+
     POKE(0x9F22, 0x11);
     POKE(0x9F21, 0xFC);
     if (game_has_started) for (i = 1; i < 4; ++i) {
-        if (!alive_virus_colors[i]) {
+        if (alive_virus_colors[i]) {
+            POKE(0x9F20, 0x8 + (i << 3));
+            temp = (((frame_tick + 10) & 0x20) ? 0x950 : 0x920) + (i << 4);
+            __asm__ ("lda %v", temp);
+            __asm__ ("sta $9F23");
+            __asm__ ("lda %v + 1", temp);
+            __asm__ ("sta $9F23");
+        } else {
             POKE(0x9F20, 0xe + (i << 3));
             POKE(0x9F23, 0);
         }
@@ -1160,7 +1213,7 @@ void load_graphics() {
     POKE(0x9F20, 0x00);
     POKE(0x9F21, 0x00);
     POKE(0x9F22, 0x11);
-    load_ram_banks_vram(1, 2, 0xc000);
+    load_ram_banks_vram(1, 3, 0xc000);
 
     cbm_k_setnam("menu.bin");
     cbm_k_setlfs(0, DEVICE_NUM, 2);
@@ -1181,11 +1234,35 @@ void load_bitmap_into_vram(unsigned char startbank) {
 }
 
 void load_title_background() {
-    VERA.layer0.hscroll = 0x0500;
-    load_bitmap_into_vram(TITLE_BACKGROUND_BANK);
+    static unsigned short i;
+
+    VERA.layer0.config = 0x02;
+    VERA.layer0.tilebase = 0xDB;
+    VERA.layer0.hscroll = 0x0000;
+    VERA.layer0.vscroll = 0x0000;
+
+    POKEW(0x9F20, 0x2000);
+    POKE(0x9F22, 0x10);
+    for (i = 1024; i; --i) {
+        POKE(0x9F23, 0x1);
+        POKE(0x9F23, 0xB0);
+    }
 }
 
+void animate_menu_background() {
+    static unsigned char scroll_timer = 0;
+
+    ++scroll_timer;
+    if (!(scroll_timer & 0x3)) {
+        ++VERA.layer0.hscroll;
+        ++VERA.layer0.vscroll;
+    }
+}
+
+
 void load_game_background() {
+    VERA.layer0.config = 0x6;
+    VERA.layer0.tilebase = 0x10;
     VERA.layer0.hscroll = 0x0400;
     load_bitmap_into_vram(GAME_BACKGROUND_BANK);
 }
