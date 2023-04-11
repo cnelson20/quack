@@ -26,7 +26,6 @@ unsigned char check_collision(unsigned char x, unsigned char y, unsigned char ro
 
 void setup_display();
 void clear_layer1();
-void draw_pillbottle();
 void setup_playfield();
 
 void draw_playfield();

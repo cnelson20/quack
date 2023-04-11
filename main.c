@@ -717,8 +717,10 @@ void setup_playfield() {
     setup_game_sprites();
     load_game_background();
     clear_layer1();
-    draw_pillbottle();
 }
+
+#define FIRST_COL_X 16
+#define FIRST_ROW_Y 10
 
 void draw_playfield() {
     static unsigned char j, i;
@@ -727,10 +729,10 @@ void draw_playfield() {
 
     curr_virus_offset = (frame_tick & 0x10) ? 0x15 : 0x12;
 
-    POKE(0x9F21, 8);
+    POKE(0x9F21, FIRST_ROW_Y);
     POKE(0x9F22, 0x10);
     for (j = 0; j < BOARD_HEIGHT; ++j) {
-        POKE(0x9F20, 32 /* 16 << 1 */);
+        POKE(0x9F20, FIRST_COL_X << 1);
         for (i = 0; i < BOARD_WIDTH; ++i) {
             temp = grid[j][i];
             POKE(0x9F23, temp ? ((temp & 0xf0) ? (curr_virus_offset + (temp & 0x3)) : 0x10) : 0x0f);
@@ -741,8 +743,8 @@ void draw_playfield() {
 
     POKEW(0x0c, pill_rot);
     if (pill_is_falling) {
-        POKE(0x9F20, 32 + (pill_x << 1));
-        POKE(0x9F21, 8 + pill_y);
+        POKE(0x9F20, (FIRST_COL_X + pill_x) << 1);
+        POKE(0x9F21, FIRST_ROW_Y + pill_y);
         POKE(0x9F23, 0xb + ((pill_rot & 1) << 1));
         POKE(0x9F23, pill_colors[0] << 4);
         if (pill_rot % 2) {
@@ -753,8 +755,8 @@ void draw_playfield() {
         POKE(0x9F23, pill_colors[1] << 4);
     }
     if (game_has_started) {
-        POKE(0x9F20, 0x26);
-        POKE(0x9F21, 4);
+        POKE(0x9F20, (FIRST_COL_X + 3) << 1);
+        POKE(0x9F21, FIRST_ROW_Y - 4);
 
         POKE(0x9F23, 0xb);
         POKE(0x9F23, next_pill_colors[0] << 4);
@@ -884,7 +886,7 @@ void setup_logo() {
 
     POKEW(0x9F20, 0xFD00);
     for (i = 0; i < 4; ++i) {
-        temp = 0x3200 + (i << 11);
+        temp = 0x3800 + (i << 11);
         POKE(0x9F23, temp >> 5);
         POKE(0x9F23, 0x08 | (temp >> 13));
         temp = 96 + ((i & 1) << 6);
@@ -969,9 +971,9 @@ void move_logo() {
 void clear_pillbottle_interior() {
     static unsigned char j, i;
     POKE(0x9F22, 0x20);
-    POKE(0x9F21, 8);
+    POKE(0x9F21, FIRST_ROW_Y);
     for (j = 0; j < 16; ++j) {
-        POKE(0x9F20, 32);
+        POKE(0x9F20, (FIRST_COL_X << 1));
         for (i = 0; i < 8; ++i) {
             POKE(0x9F23, 0);
         }
@@ -1044,16 +1046,28 @@ void setup_game_sprites() {
     POKE(0x9F23, 0xA0 | YEL_SPR_PALETTE);
 }
 
+unsigned short virus_animation_offsets[] = {0x0920, 0x0950, 0x0920, 0x0980};
+
+#define VIRUS_ANIMATION_NUM_FRAMES 0x18
+
 void animate_viruses() {
+    static unsigned char anim_frame = 0;
+    static unsigned char anim_timer = (VIRUS_ANIMATION_NUM_FRAMES >> 1);
+
     static unsigned char i;
     static unsigned short temp;
+
+    if (++anim_timer >= VIRUS_ANIMATION_NUM_FRAMES) {
+        anim_timer = 0;
+        anim_frame = (anim_frame + 1) & 3;
+    }
 
     POKE(0x9F22, 0x11);
     POKE(0x9F21, 0xFC);
     if (game_has_started) for (i = 1; i < 4; ++i) {
         if (alive_virus_colors[i]) {
             POKE(0x9F20, 0x8 + (i << 3));
-            temp = (((frame_tick + 10) & 0x20) ? 0x950 : 0x920) + (i << 4);
+            temp = virus_animation_offsets[anim_frame] + (i << 4);
             __asm__ ("lda %v", temp);
             __asm__ ("sta $9F23");
             __asm__ ("lda %v + 1", temp);
@@ -1065,107 +1079,6 @@ void animate_viruses() {
     }
 }
 
-#define BOTTLE_START_TILE_INDEX 0x19
-#define BOTTLE_LAST_TILE_P1 0x67
-
-unsigned char bottle_positions[][2] = {
-{2, 0},
-{3, 0},
-{4, 0},
-{5, 0},
-{6, 0},
-{7, 0},
-{2, 1},
-{3, 1},
-{4, 1},
-{5, 1},
-{6, 1},
-{7, 1},
-{2, 2},
-{3, 2},
-{6, 2},
-{7, 2},
-{2, 3},
-{3, 3},
-{6, 3},
-{7, 3},
-{0, 4},
-{1, 4},
-{2, 4},
-{3, 4},
-{4, 4},
-{5, 4},
-{6, 4},
-{7, 4},
-{8, 4},
-{9, 4},
-{0, 5},
-{1, 5},
-{2, 5},
-{3, 5},
-{6, 5},
-{7, 5},
-{8, 5},
-{9, 5},
-{0, 6},
-{9, 6},
-{0, 7},
-{9, 7},
-{0, 8},
-{9, 8},
-{0, 9},
-{9, 9},
-{0, 10},
-{9, 10},
-{0, 11},
-{9, 11},
-{0, 12},
-{9, 12},
-{0, 13},
-{9, 13},
-{0, 14},
-{9, 14},
-{0, 15},
-{9, 15},
-{0, 16},
-{9, 16},
-{0, 17},
-{9, 17},
-{0, 18},
-{9, 18},
-{0, 19},
-{9, 19},
-{0, 20},
-{9, 20},
-{0, 21},
-{1, 21},
-{2, 21},
-{3, 21},
-{4, 21},
-{5, 21},
-{6, 21},
-{7, 21},
-{8, 21},
-{9, 21},
-};
-
-void draw_pillbottle() {
-    static unsigned char tile_index;
-    static unsigned char i;
-
-    tile_index = BOTTLE_START_TILE_INDEX;
-    i = 0;
-    POKE(0x9F22, 0x10);
-    while (tile_index < BOTTLE_LAST_TILE_P1) {
-        POKE(0x9F20, (bottle_positions[i][0] << 1) + 30);
-        POKE(0x9F21, bottle_positions[i][1] + 3);
-        POKE(0x9F23, tile_index);
-        POKE(0x9F23, 0x60);
-        ++i;
-        ++tile_index;
-    }
-}
-
 #define DEVICE_NUM 8
 #define DR_BIN_FILELEN 0x1000
 #define LETTER_BIN_FILELEN 0x1000
@@ -1173,8 +1086,7 @@ void draw_pillbottle() {
 #define PALETTE_FILELEN 512
 #define LOAD_ADDRESS 0xA000
 
-#define TITLE_BACKGROUND_BANK 4
-#define GAME_BACKGROUND_BANK 9
+#define GAME_BACKGROUND_BANK 4
 
 void load_graphics() {
 	cbm_k_setnam("dr.bin");
@@ -1214,11 +1126,6 @@ void load_graphics() {
     POKE(0x9F21, 0x00);
     POKE(0x9F22, 0x11);
     load_ram_banks_vram(1, 3, 0xc000);
-
-    cbm_k_setnam("menu.bin");
-    cbm_k_setlfs(0, DEVICE_NUM, 2);
-    RAM_BANK = TITLE_BACKGROUND_BANK;
-    cbm_k_load(0, LOAD_ADDRESS);
 
     cbm_k_setnam("office.bin");
     cbm_k_setlfs(0, DEVICE_NUM, 2);
