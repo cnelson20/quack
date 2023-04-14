@@ -366,6 +366,7 @@ void game_loop() {
 
     setup_playfield();
     game_setup();
+    frame_count = frames_fall_table[frames_fall_index];
 
     game_has_started = 1;
     while (!game_is_over) {
