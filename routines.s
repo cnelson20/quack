@@ -18,7 +18,8 @@ BOARD_HEIGHT = 16
 
 ; Imported variables & arrays
 .import _pill_rot
-.import _fall_grid, _grid
+; .import _fall_grid
+; .import _grid
 .import _pieces_moved
 .import _frame_tick
 .import _game_time_units
@@ -104,114 +105,95 @@ rts
 ;
 .export _calc_pills_fall
 _calc_pills_fall:
-@x = tmp3
-@y = tmp2
-@ind = tmp1
-    lda $03
-    sta @y
+    jsr _setup_calc_pills_fall
 
-    asl
-    asl
-    asl
-    ora $02 ; x
-    sta @ind
-
-    lda $02
-    cmp #0
-    beq @x_zero ; if x == 0, branch ahead
-    ; Check if grid[y][x - 1] == 0
-
-    ldy @ind
+    ldy #7
+    :
+    lda _grid, Y
+    sta _fall_grid + (15 * BOARD_WIDTH), Y
     dey
-    lda _grid, Y
-    beq :+
-    cmp #$10
-    bcs :+
-    sta _fall_grid, Y
-    :
-    lda $02
-@x_zero:
-    cmp #(BOARD_WIDTH - 1)
-    bcs @x_board_width_m1 ; if x >= board_width - 1, branch ahead
-    ; Check for grid[y][x + 1] == 0
-    ldy @ind
-    iny
-    lda _grid, Y
-    beq :+
-    cmp #$10
-    bcs :+
-    sta _fall_grid, Y
-    :
-@x_board_width_m1:
-    lda @y
-    beq @y_zero ; if y == 0, branch ahead
-    ; Check grid[y - 1][x]
-    lda @ind
-    sec
-    sbc #8
-    tay
-    lda _grid, Y
-    beq :+
-    cmp #$10
-    bcs :+
-    sta _fall_grid, Y
-    :
-@y_zero:
-    rts
+    bpl :-
 
+    lda #14
+    sta tmp2
 
-;
-; void call_falling_pieces();
-;
-.export _calc_falling_pieces
-_calc_falling_pieces:
-    ldy #BOARD_WIDTH * BOARD_HEIGHT - 1
-@loop:
-    lda _fall_grid, Y
-    beq @fail_outer_if
-    sta _pieces_moved ; non-zero
-
-    tya
-    sec
-    sbc #8
+    ldy #14 * BOARD_WIDTH + 7
+    ldx #15 * BOARD_WIDTH + 7
+    @y_loop:
+    lda #7
     sta tmp1
+    @x_loop:
+
+    lda _grid, Y
+    beq @fail
+    and #$10
+    bne @has_support
+
+    lda _fall_grid, X
+    bne @has_support
 
     tya
-    and #7
-    bne :+
-    ldx tmp1
-    dex
-    lda _grid, X
-    beq :+
-    cmp #$10
-    bcs :+
-    ; .A is non-zero
-    sta _fall_grid, X
-    :
-    ldx tmp1
-    lda _grid, X
-    beq :+
-    cmp #$10
-    bcs :+
-    ; .A is non-zero
-    sta _fall_grid, X
-    :
-    tya
-    and #7
+    and #$7
     cmp #7
     beq :+
-    ldx tmp1
-    inx
-    lda _grid, X
+    lda _grid + 1, Y
     beq :+
-    cmp #$10
-    bcs :+
+    and #$10
+    bne :+
+    lda _fall_grid + 1, X
+    bne @has_support
+    :
+    tya
+    and #$7
+    beq :+
+    lda _grid - 1, Y
+    beq :+
+    and #$10
+    bne :+
+    lda _fall_grid - 1, X
+    bne @has_support
+    :
+
+    jmp @fail
+
+    @has_support:
+    lda #1
+    sta _fall_grid, Y
+
+    jmp @loop_end
+
+    @fail:
+    lda _grid, Y
+    beq :+
+    lda #1
+    sta _pieces_moved
+    :
+    lda #0
+    sta _fall_grid, Y
+
+    @loop_end:
+    dey
+    dex
+    dec tmp1
+    bpl @x_loop
+    dec tmp2
+    bpl @y_loop
+
+    ldx #BOARD_WIDTH * BOARD_HEIGHT - 1
+    @invert_loop:
+    lda _fall_grid, X
+    beq :+
+    ; != 0
+    stz _fall_grid, X
+    bra :++
+    :
+    ; == 0
+    lda #1
     sta _fall_grid, X
     :
-@fail_outer_if:
-    dey
-    cpy #8
-    bcs @loop
+    dex
+    bpl @invert_loop
+
     rts
 
 .export _piece_hit_something
@@ -278,7 +260,6 @@ viruses_killed:
 .export _check_matches
 _check_matches:
     stz fall_anyway
-    jsr _setup_calc_pills_fall
 @check_matches_reentry:
     stz @match_found
     stz viruses_killed
@@ -325,26 +306,6 @@ _check_matches:
     sta @match_found
     phy ; push index ;
 
-    tya
-    and #7
-    sta $02 ; x = index & %111 (& 7)
-    tya
-    lsr
-    lsr
-    lsr
-    sta $03 ; y = index >> 3 (div 8)
-    ldx #0
-    :
-    phx
-    jsr _calc_pills_fall
-    inc $02
-    plx
-    inx
-    cpx @size_row
-    bcc :-
-
-    ply ; pull index ;
-    phy ; push again ;
     ldx @size_row
 
     :
@@ -428,27 +389,7 @@ _check_matches:
     sta @size_row
     lda #1
     sta @match_found
-    phy ; push index
 
-    tya
-    and #7
-    sta $02
-    tya
-    lsr
-    lsr
-    lsr
-    sta $03
-    ldx #0
-    :
-    phx
-    jsr _calc_pills_fall
-    inc $03
-    plx
-    inx
-    cpx @size_row
-    bcc :-
-
-    ply
     phy ; pull and push
     ldx @size_row
     :
@@ -609,3 +550,8 @@ _display_score:
     bpl :-
     rts
 
+.export _fall_grid
+_fall_grid := $9000
+
+.export _grid
+_grid := $9080

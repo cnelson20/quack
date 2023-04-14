@@ -28,8 +28,8 @@
 
 unsigned char joystick_num;
 
-unsigned char grid[BOARD_HEIGHT][BOARD_WIDTH];
-unsigned char fall_grid[BOARD_HEIGHT][BOARD_WIDTH];
+extern unsigned char grid[BOARD_HEIGHT][BOARD_WIDTH];
+extern unsigned char fall_grid[BOARD_HEIGHT][BOARD_WIDTH];
 
 unsigned char frames_fall_start_indexes[] = {15, 25, 31};
 unsigned char frames_fall_table[] = {
@@ -69,7 +69,7 @@ unsigned char num_speed_ups;
 unsigned char frames_fall_index;
 
 unsigned char frame_count;
-unsigned char frame_tick;
+unsigned short frame_tick;
 
 #define TIME_MINUTES 2
 #define TIME_SECONDS 1
@@ -366,6 +366,8 @@ void game_loop() {
     static unsigned char temp;
     static unsigned char down_pressed;
 
+    srand(frame_tick);
+
     setup_playfield();
     game_setup();
     set_duck_throw();
@@ -661,7 +663,7 @@ void pills_fall(unsigned char first_time) {
         display_score(DISPLAY_TOP);
     }
 
-    calc_falling_pieces();
+    calc_pills_fall();
 
     if (first_time) for (j = 0; j < CASCADE_FALL_FRAMES; ++j) {
         waitforjiffy();
@@ -751,7 +753,7 @@ void draw_playfield() {
     static unsigned char temp;
     static unsigned char curr_virus_offset;
 
-    curr_virus_offset = (frame_tick & 0x10) ? 0x15 : 0x12;
+    curr_virus_offset = ((unsigned char)frame_tick & 0x10) ? 0x15 : 0x12;
 
     POKE(0x9F21, FIRST_ROW_Y);
     POKE(0x9F22, 0x10);
@@ -1174,7 +1176,7 @@ void animate_viruses() {
     if (game_has_started) for (i = 1; i < 4; ++i) {
         if (alive_virus_colors[i]) {
             POKE(0x9F20, 0x8 + (i << 3));
-            temp = virus_animation_offsets[anim_frame] + (i << 4);
+            temp = virus_animation_offsets[(anim_frame + i) & 3] + (i << 4);
             __asm__ ("lda %v", temp);
             __asm__ ("sta $9F23");
             __asm__ ("lda %v + 1", temp);
