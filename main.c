@@ -89,6 +89,8 @@ int main() {
     joystick_num = 0;
 
     load_graphics();
+    setup_title_background();
+    setup_game_background();
     setup_display();
 
     top_score = 0;
@@ -127,6 +129,9 @@ void game_setup() {
     for (i = 0; i < 3; ++i) {
         game_time_units[i] = 0;
     }
+
+    pill_num = 0;
+    num_speed_ups = 0;
 
     last_chance = 0;
 
@@ -361,7 +366,6 @@ void game_loop() {
 
     setup_playfield();
     game_setup();
-    frame_count = frames_fall_table[frames_fall_index];
 
     game_has_started = 1;
     while (!game_is_over) {
@@ -391,6 +395,10 @@ void game_loop() {
             pill_x = BOARD_HALF_WIDTH - 1;
             pill_y = 0;
             pill_rot = 0;
+
+            if (pill_num || num_speed_ups) {
+                animate_pill_toss();
+            }
             pill_is_falling = 1;
 
             ++pill_num;
@@ -400,6 +408,19 @@ void game_loop() {
                     ++num_speed_ups;
                     ++frames_fall_index;
                 }
+            }
+        } else if (pill_toss_timer > 0) {
+            static unsigned char joystick_input, i;
+
+            animate_pill_toss();
+            draw_playfield();
+
+            for (i = 0; i < 1; ++i) {
+                joystick_input = joystick_get(joystick_num);
+                if (!(joystick_input & ST_PRESSED)) {
+                    game_paused = 1;
+                }
+                waitforjiffy();
             }
         } else {
             static unsigned char joystick_input;
@@ -473,9 +494,9 @@ void game_loop() {
                 last_chance = 0;
             }
             draw_playfield();
+            --frame_count;
         }
         waitforjiffy();
-        --frame_count;
     }
     wait_frames(frame_count);
     draw_playfield();
@@ -742,7 +763,7 @@ void draw_playfield() {
     }
 
     POKEW(0x0c, pill_rot);
-    if (pill_is_falling) {
+    if (pill_is_falling && pill_toss_timer == 0) {
         POKE(0x9F20, (FIRST_COL_X + pill_x) << 1);
         POKE(0x9F21, FIRST_ROW_Y + pill_y);
         POKE(0x9F23, 0xb + ((pill_rot & 1) << 1));
@@ -755,12 +776,12 @@ void draw_playfield() {
         POKE(0x9F23, pill_colors[1] << 4);
     }
     if (game_has_started) {
-        POKE(0x9F20, (FIRST_COL_X + 3) << 1);
-        POKE(0x9F21, FIRST_ROW_Y - 4);
+        POKE(0x9F20, 30 << 1);
+        POKE(0x9F21, FIRST_ROW_Y - 2);
 
-        POKE(0x9F23, 0xb);
+        POKE(0x9F23, pill_toss_timer ? 0 : 0xb);
         POKE(0x9F23, next_pill_colors[0] << 4);
-        POKE(0x9F23, 0xc);
+        POKE(0x9F23, pill_toss_timer ? 0 : 0xc);
         POKE(0x9F23, next_pill_colors[1] << 4);
     }
 }
@@ -914,12 +935,86 @@ void disable_sprites() {
     }
 }
 
+unsigned char pill_toss_x_steps[] = {247, 244, 241, 238, 236, 233, 230, 227, 224, 221, 219, 216, 213, 210, 207, 204, 202, 199, 196, 193, 190, 187, 185, 182, 179, 176, 173, 170, 168, 165, 162, 159};
+unsigned char pill_toss_y_steps[] = {68, 62, 57, 53, 48, 44, 41, 38, 35, 33, 31, 29, 28, 28, 27, 27, 28, 29, 30, 32, 34, 37, 40, 43, 47, 51, 55, 60, 66, 71, 77, 84};
+
+unsigned char pill_toss_x_rot_offsets[] = {0xfc, 0xfc, 0, 0, 4, 4, 0,0};
+unsigned char pill_toss_y_rot_offsets[] = {0xff, 0xff, 4, 4, 0xff,0xff, 0xfc, 0xfc};
+
+unsigned char pill_toss_spr_offsets[] = {0, 0, 3, 3, 1, 1, 2, 2};
+
+#define PILL_TOSS_NUM_STEPS 32
+
+#define PILL_TOSS_ADDR_HI 0x0D
+#define PILL_TOSS_ADDR_LO 0x8B
+
+unsigned char pill_toss_timer;
+
+unsigned char animate_pill_toss() {
+    static unsigned char index;
+
+    if (pill_toss_timer >= PILL_TOSS_NUM_STEPS) {
+        POKEW(0x9F20, 0xFC36);
+        POKE(0x9F22, 0x41);
+        __asm__ ("stz $9F23");
+        __asm__ ("stz $9F23");
+
+        POKE(0x9F20, 0x08);
+        POKE(0x9F22, 0x11);
+        POKE(0x9F23, duck_animation_offsets[1]);
+        POKE(0x9F23, duck_animation_offsets[1] >> 8);
+
+        pill_toss_timer = 0;
+        return 1;
+    }
+
+    POKEW(0x9F20, 0xFC30);
+    POKE(0x9F22, 0x11);
+
+    index = pill_toss_timer & 0x7;
+    POKE(0x9F23, PILL_TOSS_ADDR_LO + pill_toss_spr_offsets[index]);
+    POKE(0x9F23, PILL_TOSS_ADDR_HI);
+
+    POKE(0x9F23, pill_toss_x_steps[pill_toss_timer] + pill_toss_x_rot_offsets[index]);
+    __asm__ ("stz $9F23");
+    POKE(0x9F23, pill_toss_y_steps[pill_toss_timer] + pill_toss_y_rot_offsets[index]);
+    __asm__ ("stz $9F23");
+
+    POKE(0x9F23, 0x0C);
+    POKE(0x9F23, pill_colors[0]);
+    // Second half of pill
+    index = (pill_toss_timer ^ 0x4) & 0x7;
+    POKE(0x9F23, PILL_TOSS_ADDR_LO + pill_toss_spr_offsets[index]);
+    POKE(0x9F23, PILL_TOSS_ADDR_HI);
+
+    POKE(0x9F23, pill_toss_x_steps[pill_toss_timer] + pill_toss_x_rot_offsets[index]);
+    __asm__ ("stz $9F23");
+    POKE(0x9F23, pill_toss_y_steps[pill_toss_timer] + pill_toss_y_rot_offsets[index]);
+    __asm__ ("stz $9F23");
+
+    POKE(0x9F23, 0x0C);
+    POKE(0x9F23, pill_colors[1]);
+
+    if (pill_toss_timer >= 8) {
+        POKEW(0x9F20, 0xFC08);
+        POKE(0x9F23, duck_animation_offsets[0]);
+        POKE(0x9F23, duck_animation_offsets[0] >> 8);
+    } else if (pill_toss_timer >= 4) {
+        POKEW(0x9F20, 0xFC08);
+        POKE(0x9F23, duck_animation_offsets[2]);
+        POKE(0x9F23, duck_animation_offsets[2] >> 8);
+    }
+
+    ++pill_toss_timer;
+    return 0;
+}
+
+/*
 #define LOGO_TABLE_LENGTH 30
 unsigned char logo_mvmt_table[LOGO_TABLE_LENGTH] = {
         0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 0, 0,
 };
 
-/*
 void move_logo() {
     static unsigned char i;
     static unsigned char table_index = LOGO_TABLE_LENGTH >> 1;
@@ -992,7 +1087,7 @@ void clear_pillbottle_interior() {
 #define YEL_SPR_PALETTE 0xa
 
 #define DR_SPR_X 231
-#define DR_SPR_Y 62
+#define DR_SPR_Y 59
 
 #define BLUE_SPR_X 57
 #define BLUE_SPR_Y 169
@@ -1009,8 +1104,8 @@ void setup_game_sprites() {
     POKE(0x9F21, 0xFC);
     POKE(0x9F20, 0x08);
 
-    POKE(0x9F23, (DR_SPR_ADDR >> 5));
-    POKE(0x9F23, (DR_SPR_ADDR >> 13));
+    POKE(0x9F23, duck_animation_offsets[1]);
+    POKE(0x9F23, duck_animation_offsets[1] >> 8);
     POKE(0x9F23, DR_SPR_X);
     POKE(0x9F23, DR_SPR_X >> 8);
     POKE(0x9F23, DR_SPR_Y);
@@ -1046,7 +1141,9 @@ void setup_game_sprites() {
     POKE(0x9F23, 0xA0 | YEL_SPR_PALETTE);
 }
 
-unsigned short virus_animation_offsets[] = {0x0920, 0x0950, 0x0920, 0x0980};
+unsigned short duck_animation_offsets[] = {0x8F0,0xAC0, 0xB00};
+
+unsigned short virus_animation_offsets[] = {0x920, 0x950, 0x920, 0x980};
 
 #define VIRUS_ANIMATION_NUM_FRAMES 0x18
 
@@ -1125,7 +1222,7 @@ void load_graphics() {
     POKE(0x9F20, 0x00);
     POKE(0x9F21, 0x00);
     POKE(0x9F22, 0x11);
-    load_ram_banks_vram(1, 3, 0xc000);
+    load_ram_banks_vram(1, 4, 0xb000);
 
     cbm_k_setnam("office.bin");
     cbm_k_setlfs(0, DEVICE_NUM, 2);
@@ -1135,18 +1232,13 @@ void load_graphics() {
 }
 
 void load_bitmap_into_vram(unsigned char startbank) {
-    POKEW(0x9F20, 0x2000);
+    POKEW(0x9F20, 0x2800);
     POKE(0x9F22, 0x10);
     load_ram_banks_vram(startbank, startbank + 4, 0xb600);
 }
 
-void load_title_background() {
+void setup_title_background() {
     static unsigned short i;
-
-    VERA.layer0.config = 0x02;
-    VERA.layer0.tilebase = 0xDB;
-    VERA.layer0.hscroll = 0x0000;
-    VERA.layer0.vscroll = 0x0000;
 
     POKEW(0x9F20, 0x2000);
     POKE(0x9F22, 0x10);
@@ -1154,6 +1246,13 @@ void load_title_background() {
         POKE(0x9F23, 0x1);
         POKE(0x9F23, 0xB0);
     }
+}
+
+void load_title_background() {
+    VERA.layer0.config = 0x02;
+    VERA.layer0.tilebase = 0xDB;
+    VERA.layer0.hscroll = 0x0000;
+    VERA.layer0.vscroll = 0x0000;
 }
 
 void animate_menu_background() {
@@ -1166,12 +1265,15 @@ void animate_menu_background() {
     }
 }
 
+void setup_game_background() {
+    load_bitmap_into_vram(GAME_BACKGROUND_BANK);
+}
 
 void load_game_background() {
     VERA.layer0.config = 0x6;
-    VERA.layer0.tilebase = 0x10;
+    VERA.layer0.tilebase = 0x14;
     VERA.layer0.hscroll = 0x0400;
-    load_bitmap_into_vram(GAME_BACKGROUND_BANK);
+
 }
 
 void load_ram_banks_vram(unsigned char startbank, unsigned char endbank, unsigned short lastaddr) {

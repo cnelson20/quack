@@ -8,6 +8,9 @@
 extern unsigned char grid[BOARD_HEIGHT][BOARD_WIDTH];
 extern unsigned char fall_grid[BOARD_HEIGHT][BOARD_WIDTH];
 
+extern unsigned short duck_animation_offsets[];
+extern unsigned short virus_animation_offsets[];
+
 int main();
 
 void menu();
@@ -48,8 +51,15 @@ void animate_viruses();
 void update_virus_count();
 void print_stats();
 
+extern unsigned char pill_toss_timer;
+unsigned char animate_pill_toss();
+
+extern unsigned short duck_animation_offsets[];
+
 void load_graphics();
+void setup_game_background();
 void load_game_background();
+void setup_title_background();
 void load_title_background();
 void animate_menu_background();
 
