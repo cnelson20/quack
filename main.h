@@ -45,6 +45,7 @@ void clear_pillbottle_interior();
 void setup_logo();
 void disable_sprites();
 
+void set_duck_throw();
 void setup_game_sprites();
 void animate_viruses();
 

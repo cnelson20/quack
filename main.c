@@ -152,6 +152,8 @@ void game_setup() {
     display_score(DISPLAY_TOP);
     display_score(DISPLAY_CURRENT);
     print_stats();
+
+    frame_count = frames_fall_table[frames_fall_index];
 }
 
 
@@ -366,7 +368,7 @@ void game_loop() {
 
     setup_playfield();
     game_setup();
-    frame_count = frames_fall_table[frames_fall_index];
+    set_duck_throw();
 
     game_has_started = 1;
     while (!game_is_over) {
@@ -1100,13 +1102,20 @@ void clear_pillbottle_interior() {
 #define YEL_SPR_Y 142
 
 
+void set_duck_throw() {
+    POKE(0x9F22, 0x11);
+    POKEW(0x9F20, 0xFC08);
+    POKE(0x9F23, duck_animation_offsets[1]);
+    POKE(0x9F23, duck_animation_offsets[1] >> 8);
+}
+
 void setup_game_sprites() {
     POKE(0x9F22, 0x11);
     POKE(0x9F21, 0xFC);
     POKE(0x9F20, 0x08);
 
-    POKE(0x9F23, duck_animation_offsets[1]);
-    POKE(0x9F23, duck_animation_offsets[1] >> 8);
+    POKE(0x9F23, duck_animation_offsets[0]);
+    POKE(0x9F23, duck_animation_offsets[0] >> 8);
     POKE(0x9F23, DR_SPR_X);
     POKE(0x9F23, DR_SPR_X >> 8);
     POKE(0x9F23, DR_SPR_Y);
