@@ -1157,18 +1157,18 @@ unsigned short duck_animation_offsets[] = {0x8F0,0xAC0, 0xB00};
 
 unsigned short virus_animation_offsets[] = {0x920, 0x950, 0x920, 0x980};
 
-#define VIRUS_ANIMATION_NUM_FRAMES 0x18
+#define VIRUS_ANIMATION_NUM_FRAMES 0x20
 
 void animate_viruses() {
-    static unsigned char anim_frame = 0;
-    static unsigned char anim_timer = (VIRUS_ANIMATION_NUM_FRAMES >> 1);
+    static unsigned char anim_frame[4] = {0xff, 0, 1, 2};
+    static unsigned char anim_timer[4] = {0, VIRUS_ANIMATION_NUM_FRAMES / 3, (VIRUS_ANIMATION_NUM_FRAMES * 2) / 3};
 
     static unsigned char i;
     static unsigned short temp;
 
-    if (++anim_timer >= VIRUS_ANIMATION_NUM_FRAMES) {
-        anim_timer = 0;
-        anim_frame = (anim_frame + 1) & 3;
+    for (i = 1; i < 4; ++i) if (++anim_timer[i] >= VIRUS_ANIMATION_NUM_FRAMES) {
+        anim_timer[i] = 0;
+        anim_frame[i] = (anim_frame[i] + 1) & 3;
     }
 
     POKE(0x9F22, 0x11);
@@ -1176,7 +1176,7 @@ void animate_viruses() {
     if (game_has_started) for (i = 1; i < 4; ++i) {
         if (alive_virus_colors[i]) {
             POKE(0x9F20, 0x8 + (i << 3));
-            temp = virus_animation_offsets[(anim_frame + i) & 3] + (i << 4);
+            temp = virus_animation_offsets[anim_frame[i]] + (i << 4);
             __asm__ ("lda %v", temp);
             __asm__ ("sta $9F23");
             __asm__ ("lda %v + 1", temp);
