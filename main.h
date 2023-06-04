@@ -58,13 +58,11 @@ unsigned char animate_pill_toss();
 extern unsigned short duck_animation_offsets[];
 
 void load_graphics();
-void setup_game_background();
 void load_game_background();
 void setup_title_background();
 void load_title_background();
 void animate_menu_background();
 
-void load_bitmap_into_vram(unsigned char startbank);
 void load_ram_banks_vram(unsigned char startbank, unsigned char endbank, unsigned short lastaddr);
 
 #endif

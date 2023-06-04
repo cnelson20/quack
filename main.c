@@ -2,6 +2,7 @@
 #include <cbm.h>
 #include <cx16.h>
 #include <stdlib.h>
+#include <ascii_charmap.h>
 #include "main.h"
 #include "routines.h"
 
@@ -90,7 +91,6 @@ int main() {
 
     load_graphics();
     setup_title_background();
-    setup_game_background();
     setup_display();
 
     top_score = 0;
@@ -167,7 +167,7 @@ void menu() {
         if (!game_is_over) {
             clear_layer1();
             setup_logo();
-            write_string_screen(14, 23, 0, "press  start", 12);
+            write_string_screen(14, 23, 0, "PRESS  START", 12);
 
             // wait for no key presses
             while ((joystick_get(joystick_num) & 0xff) != 0xff) {
@@ -195,27 +195,31 @@ void menu() {
 
 #define M40(c) (c - 0x40)
 #define LEVEL_STRING_LENGTH 5
-char level_string[] = {'l', M40('e'), M40('v'), M40('e'), M40('l')};
+char level_string[] = "Level";
 
 #define DIFF_STRING_LENGTH 10
-char difficulty_string[] = {'d', M40('i'), M40('f'), M40('f'), M40('i'), M40('c'), M40('u'), M40('l'), M40('t'), M40('y')};
+char difficulty_string[] = "Difficulty";
 
 #define MUSIC_STRING_LENGTH 5
-char music_string[] = {'m', M40('u'), M40('s'), M40('i'), M40('c')};
+char music_string[] = "Music";
+
+#define CREDITS_STRING_LENGTH 7
+char credits_string[] = "Credits";
 
 char music_on_off_strings[][4] = {
-        "off",
-        "on ",
+        "OFF",
+        "ON ",
 };
 char difficulty_strings[][8] = {
-        "  easy ",
-        " medium",
-        "  hard ",
+        "  EASY ",
+        " MEDIUM",
+        "  HARD ",
 };
 unsigned char menu_row_maxs[3] = {20, DIFF_HARD, 0};
 unsigned char menu_row_mins[3] = {0, DIFF_EASY, 1};
 
 void setup_settings_background();
+void setup_credits_background();
 
 void display_settings() {
     write_num_screen(26, 7, 0, level);
@@ -237,9 +241,6 @@ unsigned char settings_menu() {
     up_cool = 0;
     down_cool = 0;
 
-    write_string_screen(11, 7, 0, level_string, LEVEL_STRING_LENGTH);
-    write_string_screen(6, 15, 0, difficulty_string, DIFF_STRING_LENGTH);
-    write_string_screen(11, 23, 0, music_string, MUSIC_STRING_LENGTH);
     display_settings();
     while ((joystick_get(joystick_num) & 0xff) != 0xff) {
         animate_menu_background();
@@ -256,14 +257,14 @@ unsigned char settings_menu() {
             } else {
                 POKE(0x9F20, 22 << 1);
                 POKE(0x9F21, 7 + (i << 3));
-                POKE(0x9F23, 0xA0);
+                POKE(0x9F23, 0x80);
             }
             if (i == menu_row && menu_row_maxs[menu_row] != temp) {
                 write_string_screen(31, 7 + (menu_row << 3), 0, ">", 1);
             } else {
                 POKE(0x9F20, 31 << 1);
                 POKE(0x9F21, 7 + (i << 3));
-                POKE(0x9F23, 0xA0);
+                POKE(0x9F23, 0x80);
             }
         }
 
@@ -300,8 +301,6 @@ unsigned char settings_menu() {
         if (!up_cool && !(joystick_input & UP_PRESSED)) {
             if (menu_row) {
                 --menu_row;
-            } else {
-                menu_row = 2;
             }
             up_cool = MENU_REPEAT_FRAMES;
         } else if (up_cool) {
@@ -310,8 +309,22 @@ unsigned char settings_menu() {
 
         if (!down_cool && !(joystick_input & DOWN_PRESSED)) {
            if (++menu_row >= 3) {
-               menu_row = 0;
+			   clear_layer1();
+			   setup_credits_background();
+			   while (1) {
+				   animate_menu_background();
+				   waitforjiffy();
+				   joystick_input = joystick_get(joystick_num);
+				   if (!(joystick_input & UP_PRESSED)) {
+					   break;
+				   }
+			   }
+			   clear_layer1();
+			   disable_sprites();
+			   setup_settings_background();
+               menu_row = 2;
            }
+		   up_cool = MENU_REPEAT_FRAMES;
            down_cool = MENU_REPEAT_FRAMES;
         } else if (down_cool) {
             --down_cool;
@@ -335,29 +348,29 @@ void results_screen() {
             display_score(DISPLAY_TOP);
         }
         // win
-        write_string_screen(18, 12, 0, "level", 5);
-        write_string_screen(17, 13, 0, "clear!", 6);
+        write_string_screen(18, 12, 0, "LEVEL", 5);
+        write_string_screen(17, 13, 0, "CLEAR!", 6);
 
-        write_string_screen(18, 15, 0, "time", 4);
+        write_string_screen(18, 15, 0, "TIME", 4);
         write_string_screen(19, 16, 0, ":", 1);
         write_num_screen(17, 16, 0, game_time_units[2]);
         if (game_time_units[2] < 10) {
             POKE(0x9F20, 17 << 1);
             POKE(0x9F21, 16);
             POKE(0x9F22, 0x00);
-            POKE(0x9F23, 0xA0);
+            POKE(0x9F23, 0x80);
         }
         write_num_screen(20, 16, 0, game_time_units[1]);
 
 
         ++level;
     } else {
-        write_string_screen(18, 12, 0, "game", 4);
-        write_string_screen(18, 13, 0, "over", 4);
+        write_string_screen(18, 12, 0, "GAME", 4);
+        write_string_screen(18, 13, 0, "OVER", 4);
         // game over
     }
-    write_string_screen(17, 20, 0, "press", 5);
-    write_string_screen(17, 21, 0, "start", 5);
+    write_string_screen(17, 20, 0, "PRESS", 5);
+    write_string_screen(17, 21, 0, "START", 5);
     while (joystick_get(joystick_num) & ST_PRESSED) { waitforjiffy(); }
     while (!(joystick_get(joystick_num) & ST_PRESSED)) { waitforjiffy(); }
 }
@@ -376,7 +389,7 @@ void game_loop() {
     while (!game_is_over) {
         if (game_paused) {
             clear_pillbottle_interior();
-            write_string_screen(17, 15, 0, "paused", 6);
+            write_string_screen(17, 15, 0, "PAUSED", 6);
             while (!(joystick_get(joystick_num) & ST_PRESSED)) {
                 waitforjiffy();
             }
@@ -811,9 +824,9 @@ void write_num_screen(unsigned char x, unsigned char y, unsigned char palette, u
     POKE(0x9F20, x << 1);
     POKE(0x9F21, y);
     POKE(0x9F22, 0x10);
-    POKE(0x9F23, 0xb0 | (num / 10));
+    POKE(0x9F23, 0x90 + (num / 10));
     POKE(0x9F23, palette);
-    POKE(0x9F23, 0xb0 | (num % 10));
+    POKE(0x9F23, 0x90 + (num % 10));
     POKE(0x9F23, palette);
 }
 
@@ -837,7 +850,8 @@ void write_string_screen(unsigned char x, unsigned char y, unsigned char palette
     __asm__ ("ldy #0");
     loop_write_string_screen:
     __asm__ ("lda (ptr1), Y");
-    __asm__ ("ora #$80");
+    __asm__ ("clc");
+	__asm__ ("adc #$60");
     __asm__ ("sta $9F23");
     __asm__ ("iny");
     __asm__ ("lda %v", p);
@@ -854,7 +868,7 @@ unsigned char palette_offsets_background[3] = {0xB1, 0xB0, 0xB3};
 void setup_settings_background() {
     static unsigned char i,j;
     static unsigned short temp;
-
+	
     POKEW(0x9F20, 0xFD08);
     POKE(0x9F22, 0x11);
     for (j = 0; j < BACKGROUND_HEIGHT_32; ++j) {
@@ -875,6 +889,58 @@ void setup_settings_background() {
             POKE(0x9F23, palette_offsets_background[j]);
         }
     }
+	
+	write_string_screen(11, 7, 0, level_string, LEVEL_STRING_LENGTH);
+    write_string_screen(6, 15, 0, difficulty_string, DIFF_STRING_LENGTH);
+    write_string_screen(11, 23, 0, music_string, MUSIC_STRING_LENGTH);
+}
+
+#define CODER_STRING_LENGTH 20
+#define ARTIST_STRING_LENGTH 12
+char credits_strings[][24] = {
+	"coding - totodilespy",
+	"art - AJenbo",
+};
+#define CREDITS_STRINGS_LENGTH 2
+
+unsigned char credits_strings_pos[][4] = {
+	{10, 8, 0, CODER_STRING_LENGTH},
+	{10, 10, 0, ARTIST_STRING_LENGTH},
+};
+
+void setup_credits_background() {
+    static unsigned char i,j;
+    static unsigned short temp;
+	
+    POKEW(0x9F20, 0xFD08);
+    POKE(0x9F22, 0x11);
+    for (j = 0; j < 6; ++j) {
+        for (i = 0; i < BACKGROUND_WIDTH_64; ++i) {
+            POKE(0x9F23, 0x11A00 >> 5);
+            POKE(0x9F23, 0x11A00 >> 13);
+            temp = 32 + (i << 6);
+            __asm__ ("lda %v", temp);
+            __asm__ ("sta $9F23");
+            __asm__ ("lda %v + 1", temp);
+            __asm__ ("sta $9F23");
+            temp = 24 + (j << 5);
+            __asm__ ("lda %v", temp);
+            __asm__ ("sta $9F23");
+            __asm__ ("lda %v + 1", temp);
+            __asm__ ("sta $9F23");
+            POKE(0x9F23, 0x08);
+            POKE(0x9F23, 0xB0);
+        }
+    }
+	
+	write_string_screen(16, 5, 0, credits_string, CREDITS_STRING_LENGTH);
+	
+	for (i = 0; i < CREDITS_STRINGS_LENGTH; ++i) {
+		write_string_screen(credits_strings_pos[i][0], 
+			credits_strings_pos[i][1], 
+			credits_strings_pos[i][2], 
+			credits_strings[i], credits_strings_pos[i][3]);
+	}
 }
 
 #define NUM_LOGO_SPRITES 26
@@ -1014,60 +1080,6 @@ unsigned char animate_pill_toss() {
     return 0;
 }
 
-/*
-#define LOGO_TABLE_LENGTH 30
-unsigned char logo_mvmt_table[LOGO_TABLE_LENGTH] = {
-        0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 0, 0,
-};
-
-void move_logo() {
-    static unsigned char i;
-    static unsigned char table_index = LOGO_TABLE_LENGTH >> 1;
-    static unsigned char move_direction = 0;
-    static unsigned char current_move_amt;
-
-    current_move_amt = logo_mvmt_table[table_index];
-
-    POKE(0x9F22, 0x01);
-    POKEW(0x9F20, 0xFC0C);
-    if (!move_direction) {
-        for (i = 0; i < NUM_LOGO_SPRITES; ++i) {
-            __asm__ ("lda $9F23");
-            __asm__ ("clc");
-            __asm__ ("adc %v", current_move_amt);
-            __asm__ ("sta $9F23");
-            __asm__ ("inc $9F20");
-
-            __asm__ ("lda $9F23");
-            __asm__ ("adc #0");
-            __asm__ ("sta $9F23");
-
-            POKEW(0x9F20, PEEKW(0x9F20) + 7);
-        }
-    } else {
-        for (i = 0; i < 26; ++i) {
-            __asm__ ("lda $9F23");
-            __asm__ ("sec");
-            __asm__ ("sbc %v", current_move_amt);
-            __asm__ ("sta $9F23");
-            __asm__ ("inc $9F20");
-
-            __asm__ ("lda $9F23");
-            __asm__ ("sbc #0");
-            __asm__ ("sta $9F23");
-
-            POKEW(0x9F20, PEEKW(0x9F20) + 7);
-        }
-    }
-
-    ++table_index;
-    if (table_index >= LOGO_TABLE_LENGTH) {
-        table_index = 0;
-        move_direction = !move_direction;
-    }
-}
- */
-
 void clear_pillbottle_interior() {
     static unsigned char j, i;
     POKE(0x9F22, 0x20);
@@ -1189,64 +1201,28 @@ void animate_viruses() {
 }
 
 #define DEVICE_NUM 8
-#define DR_BIN_FILELEN 0x1000
-#define LETTER_BIN_FILELEN 0x1000
-#define SPRITE_BIN_FILELEN 0x2000
-#define PALETTE_FILELEN 512
-#define LOAD_ADDRESS 0xA000
-
-#define GAME_BACKGROUND_BANK 4
 
 void load_graphics() {
-	cbm_k_setnam("dr.bin");
+	cbm_k_setnam("DR.BIN");
 	cbm_k_setlfs(0, DEVICE_NUM, 2);
-	POKE(0x9F20, 0);
-	POKE(0x9F21, 0xB0);
-	POKE(0x9F22, 0x11);
-    RAM_BANK = 1;
-	cbm_k_load(0, 0xA000);
-    POKEW(0x2, LOAD_ADDRESS);
-    POKEW(0x4, 0x9F23);
-    POKEW(0x6, DR_BIN_FILELEN);
-    __asm__("jsr $FEE7");
+	cbm_k_load(3, 0xB000);
 
-    cbm_k_setnam("letter.bin");
+    cbm_k_setnam("LETTER.BIN");
     cbm_k_setlfs(0, DEVICE_NUM, 2);
-    RAM_BANK = 1;
-    cbm_k_load(0, 0xA000);
-    POKEW(0x6, LETTER_BIN_FILELEN);
-    __asm__("jsr $FEE7");
+    cbm_k_load(3, 0xC000);
 
-    cbm_k_setnam("palette.bin");
+    cbm_k_setnam("PALETTE.BIN");
     cbm_k_setlfs(0, DEVICE_NUM, 2);
-    POKE(0x9F20, 0);
-    POKE(0x9F21, 0xFA);
-    POKE(0x9F22, 0x11);
-    RAM_BANK = 1;
-    cbm_k_load(0, LOAD_ADDRESS);
-    POKEW(0x6, PALETTE_FILELEN);
-    __asm__("jsr $FEE7");
+    cbm_k_load(3, 0xFA00);
 
-    cbm_k_setnam("sprites.bin");
+    cbm_k_setnam("SPRITES.BIN");
     cbm_k_setlfs(0, DEVICE_NUM, 2);
-    RAM_BANK = 1;
-    cbm_k_load(0, 0xA000);
-    POKE(0x9F20, 0x00);
-    POKE(0x9F21, 0x00);
-    POKE(0x9F22, 0x11);
-    load_ram_banks_vram(1, 4, 0xb000);
+    cbm_k_load(3, 0x0000);
 
-    cbm_k_setnam("office.bin");
+    cbm_k_setnam("OFFICE.BIN");
     cbm_k_setlfs(0, DEVICE_NUM, 2);
-    RAM_BANK = GAME_BACKGROUND_BANK;
-    cbm_k_load(0, LOAD_ADDRESS);
+    cbm_k_load(2, 0x2800);
 
-}
-
-void load_bitmap_into_vram(unsigned char startbank) {
-    POKEW(0x9F20, 0x2800);
-    POKE(0x9F22, 0x10);
-    load_ram_banks_vram(startbank, startbank + 4, 0xb600);
 }
 
 void setup_title_background() {
@@ -1277,30 +1253,9 @@ void animate_menu_background() {
     }
 }
 
-void setup_game_background() {
-    load_bitmap_into_vram(GAME_BACKGROUND_BANK);
-}
-
 void load_game_background() {
     VERA.layer0.config = 0x6;
     VERA.layer0.tilebase = 0x14;
     VERA.layer0.hscroll = 0x0400;
 
-}
-
-void load_ram_banks_vram(unsigned char startbank, unsigned char endbank, unsigned short lastaddr) {
-    static unsigned char num_banks;
-    num_banks = endbank - startbank;
-
-    RAM_BANK = startbank;
-    POKEW(0x2, LOAD_ADDRESS);
-    POKEW(0x4, 0x9F23);
-    POKEW(0x6, 0x2000);
-    while (num_banks) {
-        __asm__("jsr $FEE7");
-        --num_banks;
-        RAM_BANK = RAM_BANK + 1;
-    }
-    POKEW(0x6, lastaddr - 0xA000);
-    __asm__("jsr $FEE7");
 }

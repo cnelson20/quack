@@ -535,13 +535,15 @@ _display_score:
     lsr
     lsr
     lsr
-    ora #$B0
+	clc
+    adc #$90
     sta $9F23
     lda #$a0
     sta $9F23
 
     lda _score, Y
-    ora #$B0
+    clc
+    adc #$90
     sta $9F23
     lda #$a0
     sta $9F23
