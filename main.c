@@ -20,6 +20,7 @@
 #define DIFF_MED 1
 #define DIFF_HARD 2
 
+// Constants declaring game speed
 #define KEY_REPEAT_FRAMES 6
 #define MENU_REPEAT_FRAMES 8
 
@@ -29,6 +30,14 @@
 #define VIRUS_DRAW_FRAMES 6
 #define FRAMES_PER_SECOND 60
 
+// Support constants
+#define NO_SUPPORT 0
+#define SUPPORT_SELF 1
+#define SUPPORT_LEFT 2
+#define SUPPORT_UNDER 3
+#define SUPPORT_RIGHT 4
+
+// Sfx constants
 #define KILL_SFX_BANK 2
 #define MOVE_SFX_BANK 4
 
@@ -36,6 +45,7 @@ unsigned char joystick_num;
 
 extern unsigned char grid[BOARD_HEIGHT][BOARD_WIDTH];
 extern unsigned char fall_grid[BOARD_HEIGHT][BOARD_WIDTH];
+extern unsigned char support_grid[BOARD_HEIGHT][BOARD_WIDTH];
 
 unsigned char frames_fall_start_indexes[] = {15, 25, 31};
 unsigned char frames_fall_table[] = {
@@ -150,6 +160,7 @@ void game_setup() {
     for (j = 0; j < BOARD_HEIGHT; ++j) {
         for (i = 0; i < BOARD_WIDTH; ++i) {
             grid[j][i] = NO_TILE;
+			support_grid[j][i] = NO_SUPPORT;
         }
     }
     draw_playfield();
@@ -502,10 +513,21 @@ void game_loop() {
 					if (pill_y & 1) { play_move_sfx(); }
                 }
                 if (last_chance && check_collision(pill_x, pill_y + 1, pill_rot)) {
-                    pill_is_falling = 0;
+					static unsigned char pill_x_2, pill_y_2;
+					
+					pill_x_2 = pill_x + ((pill_rot & 1) ^ 1);
+                    pill_y_2 = pill_y + (pill_rot & 1);
+					
                     grid[pill_y][pill_x] = pill_colors[0];
-                    grid[pill_y + (pill_rot & 1)][pill_x + ((pill_rot & 1) ^ 1)] = pill_colors[1];
-
+                    grid[pill_y_2][pill_x_2] = pill_colors[1];
+					temp = find_piece_support(pill_x, pill_y, pill_x_2, pill_y_2);
+					POKEW(0x02, temp);
+					support_grid[pill_y][pill_x] = temp;
+					temp = find_piece_support(pill_x_2, pill_y_2, pill_x, pill_y);
+					support_grid[pill_y_2][pill_x_2] = temp;
+					POKEW(0x04, temp);
+					
+					pill_is_falling = 0;
                     check_matches();
                     if (num_viruses_alive == 0 || num_viruses_alive >= 128) {
                         player_won = 1;
@@ -631,6 +653,7 @@ void spawn_viruses() {
         }
 
         grid[y][x] = 0x10 | (virus_color);
+		support_grid[y][x] = SUPPORT_SELF;
         --num_viruses;
         draw_playfield();
         wait_frames(VIRUS_DRAW_FRAMES);

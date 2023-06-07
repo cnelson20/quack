@@ -19,6 +19,8 @@ void calc_pills_fall();
 void calc_falling_pieces();
 void make_pieces_fall();
 
+unsigned char find_piece_support(unsigned char x, unsigned char y, unsigned char x2, unsigned char y2);
+
 #define DISPLAY_CURRENT 0
 #define DISPLAY_TOP 1
 void __fastcall__ display_score(unsigned char);

@@ -5,7 +5,11 @@ r2 = $06
 BOARD_WIDTH = 8
 BOARD_HEIGHT = 16
 
-KILL_SFX_BANK = 2
+NO_SUPPORT = 0
+SUPPORT_SELF = 1
+SUPPORT_LEFT = 2
+SUPPORT_UNDER = 3
+SUPPORT_RIGHT = 4
 
 .importzp tmp1, tmp2, tmp3
 
@@ -115,6 +119,8 @@ rts
 ;
 ; void __fastcall__ calc_pills_fall();
 ;
+; This function finds out which pills should fall due to gravity after a match.
+;
 .export _calc_pills_fall
 _calc_pills_fall:
     jsr _setup_calc_pills_fall
@@ -214,6 +220,8 @@ _piece_hit_something:
 ;
 ; void make_pieces_fall();
 ;
+; This function does the work of moving pieces down as they fall due to gravity
+;
 .export _make_pieces_fall
 _make_pieces_fall:
     ldy #BOARD_WIDTH * (BOARD_HEIGHT - 1) - 1
@@ -268,6 +276,9 @@ viruses_killed:
     .byte 0
 ;
 ; void check_matches();
+;
+; This function goes through the game grid to find matches >= 4 and r
+; remove those pieces from the grid, changing virus #'s if necessary
 ;
 .export _check_matches
 _check_matches:
@@ -515,6 +526,10 @@ _check_matches:
 _spare_grid:
     .res (BOARD_WIDTH * BOARD_HEIGHT)
 
+.export _support_grid	
+_support_grid:
+	.res (BOARD_WIDTH * BOARD_HEIGHT)
+
 .export _score_to_add
 _score_to_add:
     .byte $00, $00, $00, $FF
@@ -583,6 +598,82 @@ _display_score:
     bpl :-
     rts
 
+.export _find_piece_support
+_find_piece_support:
+	sta @y2
+	jsr popa
+	sta @x2
+	
+	jsr popa 
+	sta @y
+	jsr popa
+	sta @x
+	
+	lda @y
+	cmp #(BOARD_HEIGHT - 1)
+	beq :+
+	lda @y2
+	cmp #(BOARD_HEIGHT - 1)
+	bne @not_support_self	
+	:
+	; if y = 15 or vertical and y = 14, ground supports it
+	lda #SUPPORT_SELF
+	rts
+	
+@not_support_self:
+	lda @y
+	asl
+	asl
+	asl
+	ora @x
+	tax
+	
+	clc
+	adc #BOARD_WIDTH
+	tay
+	; index of piece below in .Y
+	lda _grid, Y
+	beq :+
+	; There is a piece below this one
+	lda #SUPPORT_UNDER
+	rts
+	:
+	lda @x
+	cmp @x2
+	beq @no_support ; if pill was placed vertically and nothing is below position, there is no support
+	bcc :+ ; if x < x2, skip ahead 
+	
+	dey
+	lda _grid, Y
+	iny
+	cmp #0
+	beq @no_support
+	lda #SUPPORT_LEFT ; since x > x2, this tile is supported by the piece under x2
+	rts
+	:
+	;bcs :+ ; if x > x2, skip ahead
+	iny
+	lda _grid, Y
+	beq :+
+	lda #SUPPORT_RIGHT
+	rts
+	:
+@no_support:
+	stp
+	lda $BEEF
+	lda #NO_SUPPORT
+	rts
+	
+@x:
+	.byte 0
+@y:
+	.byte 0
+@x2:
+	.byte 0
+@y2:
+	.byte 0
+
+; Define addresses for grid
 .export _fall_grid
 _fall_grid := $9000
 
