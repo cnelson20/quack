@@ -5,16 +5,26 @@ r2 = $06
 BOARD_WIDTH = 8
 BOARD_HEIGHT = 16
 
+KILL_SFX_BANK = 2
+
 .importzp tmp1, tmp2, tmp3
 
 ; Imported functions from cc65
 .import _srand, _rand
 .import popa, popax
+.import pusha
 
 ; Imported functions from main.c
 .import _pills_fall, _setup_calc_pills_fall
 .import _wait_cascade_fall_frames
 .import _animate_viruses
+
+; sound play functions
+.import _play_kill_sfx
+
+; Zsound functions
+.import _pcm_play, _zsm_play
+.import _pcm_trigger_digi
 
 ; Imported variables & arrays
 .import _pill_rot
@@ -71,6 +81,8 @@ jsr RDTIM
 cmp tmp1
 beq :-
 
+jsr _pcm_play
+jsr _zsm_play
 jsr _animate_viruses
 
 lda _game_paused
@@ -301,9 +313,16 @@ _check_matches:
     bcc @not_horiz_match
 
 ; Found a match
-    sta @size_row
+	sta @size_row
     lda #1
     sta @match_found
+	
+	phx
+	phy 
+	jsr _play_kill_sfx
+	ply
+	plx
+	
     phy ; push index ;
 
     ldx @size_row
@@ -389,7 +408,13 @@ _check_matches:
     sta @size_row
     lda #1
     sta @match_found
-
+	
+	phx
+	phy 
+	jsr _play_kill_sfx
+	ply
+	plx
+	
     phy ; pull and push
     ldx @size_row
     :
@@ -448,6 +473,9 @@ _check_matches:
     :
     rts
 
+;
+; Score is bugged
+;
 @calc_score_add:
     lda viruses_killed
     asl
@@ -455,6 +483,7 @@ _check_matches:
     ora _difficulty
     tax
     lda _score_to_add, X
+	beq :+
     sed
     clc
     adc _score
@@ -466,6 +495,7 @@ _check_matches:
     adc #0
     sta _score + 2
     cld
+	:
     rts
 
 @match_found:
@@ -542,6 +572,7 @@ _display_score:
     sta $9F23
 
     lda _score, Y
+	and #$0F
     clc
     adc #$90
     sta $9F23

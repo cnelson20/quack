@@ -57,7 +57,11 @@ unsigned char animate_pill_toss();
 
 extern unsigned short duck_animation_offsets[];
 
+void play_kill_sfx();
+void play_move_sfx();
+
 void load_graphics();
+void load_sfx();
 void load_game_background();
 void setup_title_background();
 void load_title_background();

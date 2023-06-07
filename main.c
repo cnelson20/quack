@@ -3,6 +3,8 @@
 #include <cx16.h>
 #include <stdlib.h>
 #include <ascii_charmap.h>
+#include "zsound/pcmplayer.h"
+#include "zsound/zsmplayer.h"
 #include "main.h"
 #include "routines.h"
 
@@ -26,6 +28,9 @@
 #define CASCADE_FALL_FRAMES 24
 #define VIRUS_DRAW_FRAMES 6
 #define FRAMES_PER_SECOND 60
+
+#define KILL_SFX_BANK 2
+#define MOVE_SFX_BANK 4
 
 unsigned char joystick_num;
 
@@ -90,8 +95,11 @@ int main() {
     joystick_num = 0;
 
     load_graphics();
+	load_sfx();
     setup_title_background();
     setup_display();
+	zsm_init();
+	pcm_set_volume(0x8);
 
     top_score = 0;
     level = 0;
@@ -99,7 +107,7 @@ int main() {
     game_is_over = 0;
 
     setup_rand();
-
+	
     while (1) {
         menu();
         game_loop();
@@ -448,7 +456,8 @@ void game_loop() {
             if (!right_cool && !(joystick_input & RT_PRESSED)) {
                 temp = pill_x + ((pill_rot % 2) ^ 1) + 1; // temp = pill_x + pill_width
                 if (temp < BOARD_WIDTH && !grid[pill_y][temp] && (!(pill_rot % 2) || !grid[pill_y + 1][temp])) {
-                    pill_x++;
+                    ++pill_x;
+					play_move_sfx();
                     right_cool = KEY_REPEAT_FRAMES;
                 }
             } else if (right_cool) {
@@ -458,7 +467,8 @@ void game_loop() {
             if (!left_cool && !(joystick_input & LT_PRESSED) && pill_x > 0) {
                 temp = pill_x - 1;
                 if (!grid[pill_y][temp] && (!(pill_rot % 2) || !grid[pill_y + 1][temp])) {
-                    pill_x--;
+                    --pill_x;
+					play_move_sfx();
                     left_cool = KEY_REPEAT_FRAMES;
                 }
             } else if (left_cool) {
@@ -489,6 +499,7 @@ void game_loop() {
                 frame_count = frames_fall_table[frames_fall_index];
                 if (down_pressed && frame_count > DOWN_PRESS_SPEED) {
                     frame_count = DOWN_PRESS_SPEED;
+					if (pill_y & 1) { play_move_sfx(); }
                 }
                 if (last_chance && check_collision(pill_x, pill_y + 1, pill_rot)) {
                     pill_is_falling = 0;
@@ -529,6 +540,7 @@ void inc_pill_rot() {
         pill_colors[0] = pill_colors[1];
         pill_colors[1] = temp;
     }
+	play_move_sfx();
 }
 
 void gen_pill_colors() {
@@ -553,15 +565,15 @@ unsigned char virus_color_tables[] = {
 
 void spawn_viruses() {
     static unsigned char num_viruses;
+	static unsigned char x,y;
+	
     num_viruses = (level + 1) << 2;
     if (level == 20) { num_viruses -= 4; }
-    num_viruses_alive = num_viruses;
     alive_virus_colors[1] = 0;
     alive_virus_colors[2] = 0;
     alive_virus_colors[3] = 0;
 
     while (num_viruses > 0) {
-        static unsigned char x,y;
         static unsigned char min_row;
         static unsigned char virus_color;
         static unsigned char colors_found[4];
@@ -619,12 +631,25 @@ void spawn_viruses() {
         }
 
         grid[y][x] = 0x10 | (virus_color);
-        ++alive_virus_colors[virus_color];
         --num_viruses;
         draw_playfield();
         wait_frames(VIRUS_DRAW_FRAMES);
 
     }
+	
+	__asm__ ("ldy #127");
+	count_virus_loop:
+	__asm__ ("lda %v, Y", grid);
+	__asm__ ("and #$10");
+	__asm__ ("beq %g", count_virus_loop_not_virus);
+	__asm__ ("inc %v", num_viruses_alive);
+	__asm__ ("lda %v, Y", grid);
+	__asm__ ("and #$03");
+	__asm__ ("tax");
+	__asm__ ("inc %v, X", alive_virus_colors);
+	count_virus_loop_not_virus:
+	__asm__ ("dey");
+	__asm__ ("bpl %g", count_virus_loop);
 
 }
 
@@ -1223,6 +1248,26 @@ void load_graphics() {
     cbm_k_setlfs(0, DEVICE_NUM, 2);
     cbm_k_load(2, 0x2800);
 
+}
+
+void load_sfx() {
+	cbm_k_setnam("KILL.ZCM");
+	cbm_k_setlfs(0, DEVICE_NUM, 2);
+	RAM_BANK = 2;
+	cbm_k_load(0, 0xA000);
+	
+	cbm_k_setnam("MOVE.ZCM");
+	cbm_k_setlfs(0, DEVICE_NUM, 2);
+	RAM_BANK = 4;
+	cbm_k_load(0, 0xA000);
+}
+
+void play_move_sfx() {
+	pcm_trigger_digi(MOVE_SFX_BANK, 0xA000);
+}
+
+void play_kill_sfx() {
+	pcm_trigger_digi(KILL_SFX_BANK, 0xA000);
 }
 
 void setup_title_background() {
