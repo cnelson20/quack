@@ -520,12 +520,14 @@ void game_loop() {
 					
                     grid[pill_y][pill_x] = pill_colors[0];
                     grid[pill_y_2][pill_x_2] = pill_colors[1];
-					temp = find_piece_support(pill_x, pill_y, pill_x_2, pill_y_2);
-					POKEW(0x02, temp);
-					support_grid[pill_y][pill_x] = temp;
-					temp = find_piece_support(pill_x_2, pill_y_2, pill_x, pill_y);
-					support_grid[pill_y_2][pill_x_2] = temp;
-					POKEW(0x04, temp);
+					support_grid[pill_y][pill_x] = find_piece_support(pill_x, pill_y, pill_x_2, pill_y_2);
+					if (pill_y && grid[pill_y - 1][pill_x] && grid[pill_y - 1][pill_x] < 0x10) {
+						support_grid[pill_y - 1][pill_x] = SUPPORT_UNDER;
+					}
+					support_grid[pill_y_2][pill_x_2] = find_piece_support(pill_x_2, pill_y_2, pill_x, pill_y);
+					if (pill_y_2 && pill_x != pill_x_2 && grid[pill_y_2 - 1][pill_x_2] && grid[pill_y_2 - 1][pill_x_2] < 0x10) {
+						support_grid[pill_y_2 - 1][pill_x_2] = SUPPORT_UNDER;
+					}
 					
 					pill_is_falling = 0;
                     check_matches();

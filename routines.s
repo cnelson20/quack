@@ -121,98 +121,94 @@ rts
 ;
 ; This function finds out which pills should fall due to gravity after a match.
 ;
+; fall_grid[y][x] = 1 --> piece should fall
+; fall_grid[y][x] = 0 --> piece stays put
+;
 .export _calc_pills_fall
 _calc_pills_fall:
     jsr _setup_calc_pills_fall
+	
+	ldy #BOARD_HEIGHT * BOARD_WIDTH - 1 ; $7F
+@check_loop:	
+	lda _grid, Y
+	beq :+
+	lda _support_grid, Y	
+	cmp #NO_SUPPORT	
+	bne @next_iter ; if tile stil there and tile has support, do nothing
+	; if tile has no support and is there, should be falling
+	lda #1
+	sta _fall_grid, Y
+	sta _pieces_moved
+	lda #0
+	sta _support_grid, Y
+	:
+	
+	tya
+	sec
+	sbc #8
+	tax
+	
+	lda _grid, X
+	beq :+
+	lda _support_grid, X
+	cmp #SUPPORT_UNDER ; if above tile doesnt depend on this tile, do nothing
+	beq @support_under_fall
+	:
+	tya
+	tax
+	bra @check_side_tiles
 
-    ldy #7
-    :
-    lda _grid, Y
-    sta _fall_grid + (15 * BOARD_WIDTH), Y
-    dey
-    bpl :-
+@support_under_fall:	
+	; do things
+	lda #1
+	sta _fall_grid, X
+	stz _support_grid, X
 
-    lda #14
-    sta tmp2
-
-    ldy #14 * BOARD_WIDTH + 7
-    ldx #15 * BOARD_WIDTH + 7
-    @y_loop:
-    lda #7
-    sta tmp1
-    @x_loop:
-
-    lda _grid, Y
-    beq @fail
-    and #$10
-    bne @has_support
-
-    lda _fall_grid, X
-    bne @has_support
-
-    tya
-    and #$7
-    cmp #7
-    beq :+
-    lda _grid + 1, Y
-    beq :+
-    and #$10
-    bne :+
-    lda _fall_grid + 1, X
-    bne @has_support
-    :
-    tya
-    and #$7
-    beq :+
-    lda _grid - 1, Y
-    beq :+
-    and #$10
-    bne :+
-    lda _fall_grid - 1, X
-    bne @has_support
-    :
-
-    jmp @fail
-
-    @has_support:
-    lda #1
-    sta _fall_grid, Y
-
-    jmp @loop_end
-
-    @fail:
-    lda _grid, Y
-    beq :+
-    lda #1
-    sta _pieces_moved
-    :
-    lda #0
-    sta _fall_grid, Y
-
-    @loop_end:
-    dey
-    dex
-    dec tmp1
-    bpl @x_loop
-    dec tmp2
-    bpl @y_loop
-
-    ldx #BOARD_WIDTH * BOARD_HEIGHT - 1
-    @invert_loop:
-    lda _fall_grid, X
-    beq :+
-    ; != 0
-    stz _fall_grid, X
-    bra :++
-    :
-    ; == 0
-    lda #1
-    sta _fall_grid, X
-    :
-    dex
-    bpl @invert_loop
-
-    rts
+@check_side_tiles:	
+	; if tile to left has SUPPORT_RIGHT, make it fall
+	; do similar thing for right tile
+	tya
+	and #$7
+	phx
+	beq :+
+	dex
+	lda _grid, X
+	beq :+ ; if no tile, skip ahead
+	lda _support_grid, X
+	cmp #SUPPORT_RIGHT
+	bne :+
+	lda #1
+	sta _fall_grid, X
+	sta _pieces_moved
+	stz _support_grid, X
+	:
+	plx
+	tya
+	and #$7
+	cmp #$7
+	; if on rightmost column skip check
+	phx
+	beq :+
+	inx
+	lda _grid, X
+	beq :+ ; if no tile, skip ahead
+	lda _support_grid, X
+	cmp #SUPPORT_LEFT
+	bne :+
+	lda #1
+	sta _fall_grid, X
+	sta _pieces_moved
+	stz _support_grid, X
+	:
+	plx	
+	bra @next_iter
+	
+@next_iter:	
+	dey
+	cpy #8
+	bcs @check_loop
+	
+	rts
 
 .export _piece_hit_something
 _piece_hit_something:
@@ -225,7 +221,8 @@ _piece_hit_something:
 .export _make_pieces_fall
 _make_pieces_fall:
     ldy #BOARD_WIDTH * (BOARD_HEIGHT - 1) - 1
-@loop:
+	
+	@loop:
     lda _fall_grid, Y
     beq @next_iter
     lda _grid, Y
@@ -245,7 +242,7 @@ _make_pieces_fall:
     sta _fall_grid, X
 
     cpy #(BOARD_HEIGHT - 1) * BOARD_WIDTH
-    bcs :++
+    bcs :++ ; if .Y represents piece with y = 15, skip past
     phx
     ldx tmp1
     lda _grid, X
@@ -262,9 +259,18 @@ _make_pieces_fall:
     sta _grid, X
     lda #0
     sta _grid, Y
+	
+	lda #NO_SUPPORT
+	sta _support_grid, Y
+	sta _support_grid, X
+	bra @second_fail_case_tt
 @second_fail_case:
+	lda #SUPPORT_UNDER
+	sta _support_grid, Y
+@second_fail_case_tt:
     lda #0
     sta _fall_grid, Y
+
 @next_iter:
     dey
     bpl @loop
@@ -353,6 +359,7 @@ _check_matches:
     lda #0
     sta _grid, Y
     sta _spare_grid, Y
+	sta _support_grid, Y
     iny
     dex
     bne :--
@@ -443,6 +450,7 @@ _check_matches:
     lda #0
     sta _grid, Y
     sta _spare_grid, Y
+	sta _support_grid, Y
     tya
     clc
     adc #8
@@ -527,7 +535,7 @@ _spare_grid:
     .res (BOARD_WIDTH * BOARD_HEIGHT)
 
 .export _support_grid	
-_support_grid:
+_support_grid := $9100
 	.res (BOARD_WIDTH * BOARD_HEIGHT)
 
 .export _score_to_add
@@ -635,6 +643,8 @@ _find_piece_support:
 	lda _grid, Y
 	beq :+
 	; There is a piece below this one
+	; =
+	; =
 	lda #SUPPORT_UNDER
 	rts
 	:
@@ -649,6 +659,9 @@ _find_piece_support:
 	cmp #0
 	beq @no_support
 	lda #SUPPORT_LEFT ; since x > x2, this tile is supported by the piece under x2
+	; x is supported by x2, to its left
+	; ==
+	; =
 	rts
 	:
 	;bcs :+ ; if x > x2, skip ahead
@@ -656,11 +669,13 @@ _find_piece_support:
 	lda _grid, Y
 	beq :+
 	lda #SUPPORT_RIGHT
+	; x is supported to x2, to its right
+	; ==
+	;  =
 	rts
 	:
 @no_support:
-	stp
-	lda $BEEF
+		lda $BEEF
 	lda #NO_SUPPORT
 	rts
 	
