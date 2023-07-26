@@ -206,6 +206,7 @@ void menu() {
         clear_layer1();
 
         game_is_over = 0;
+		game_has_started = 0;
         start_game = settings_menu();
         disable_sprites();
     } while (start_game == 0);
