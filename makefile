@@ -1,4 +1,6 @@
 
+FOLDER ?= game
+
 ifeq ($(OS),Windows_NT)
 CC = cl65.exe
 else
@@ -14,10 +16,10 @@ $(PROG): $(SOURCES) $(HEADERS)
 	$(CC) $(FLAGS) -o $(PROG) $(SOURCES) -lib zsound/zsound.lib
 
 copy:
-	-mkdir game/
-	cp *.BIN game/
-	cp *.ZCM game/
-	cp $(PROG) game/
+	-mkdir $(FOLDER)/
+	cp *.BIN $(FOLDER)/
+	cp *.ZCM $(FOLDER)/
+	cp $(PROG) $(FOLDER)/
 
 clean:
 	-rm *.o
