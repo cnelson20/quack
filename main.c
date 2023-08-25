@@ -885,30 +885,32 @@ void write_string_screen(unsigned char x, unsigned char y, unsigned char palette
     static unsigned char p;
     static char *s;
     static unsigned char l;
+	
+	if (*string) {
+		p = palette << 4;
+		s = string;
+		l = str_length;
 
-    p = palette << 4;
-    s = string;
-    l = str_length;
+		POKE(0x9F20, x << 1);
+		POKE(0x9F21, y);
+		POKE(0x9F22, 0x10);
 
-    POKE(0x9F20, x << 1);
-    POKE(0x9F21, y);
-    POKE(0x9F22, 0x10);
-
-    __asm__ ("lda %v", s);
-    __asm__ ("sta ptr1");
-    __asm__ ("lda %v + 1", s);
-    __asm__ ("sta ptr1 + 1");
-    __asm__ ("ldy #0");
-    loop_write_string_screen:
-    __asm__ ("lda (ptr1), Y");
-    __asm__ ("clc");
-	__asm__ ("adc #$60");
-    __asm__ ("sta $9F23");
-    __asm__ ("iny");
-    __asm__ ("lda %v", p);
-    __asm__ ("sta $9F23");
-    __asm__ ("dec %v", l);
-    __asm__ ("bne %g", loop_write_string_screen);
+		__asm__ ("lda %v", s);
+		__asm__ ("sta ptr1");
+		__asm__ ("lda %v + 1", s);
+		__asm__ ("sta ptr1 + 1");
+		__asm__ ("ldy #0");
+		loop_write_string_screen:
+		__asm__ ("lda (ptr1), Y");
+		__asm__ ("clc");
+		__asm__ ("adc #$60");
+		__asm__ ("sta $9F23");
+		__asm__ ("iny");
+		__asm__ ("lda %v", p);
+		__asm__ ("sta $9F23");
+		__asm__ ("dec %v", l);
+		__asm__ ("bne %g", loop_write_string_screen);
+	}
 }
 
 #define BACKGROUND_WIDTH_64 4
@@ -946,18 +948,26 @@ void setup_settings_background() {
     write_string_screen(11, 23, 0, music_string, MUSIC_STRING_LENGTH);
 }
 
-#define CODER_STRING_LENGTH 20
-#define ARTIST_STRING_LENGTH 12
-char credits_strings[][24] = {
+unsigned char credits_strings_lengths[] = {
+	20, // CODER_STRING_LENGTH
+	12, // ARTIST_STRING_LENGTH
+	0,
+	24, // SOURCE CODE STR LENGTH
+	26, // GH LINK STR LENGTH
+};
+
+unsigned char credits_strings_pos[] = {
+	10, 10, 0, 7, 7,
+};
+
+char credits_strings[][32] = {
 	"coding - totodilespy",
 	"art - AJenbo",
+	"",
+	"source code available at",
+	"github.com/cnelson20/quack",
 };
-#define CREDITS_STRINGS_LENGTH 2
-
-unsigned char credits_strings_pos[][4] = {
-	{10, 8, 0, CODER_STRING_LENGTH},
-	{10, 10, 0, ARTIST_STRING_LENGTH},
-};
+#define CREDITS_STRINGS_LENGTH 5
 
 void setup_credits_background() {
     static unsigned char i,j;
@@ -986,11 +996,13 @@ void setup_credits_background() {
 	
 	write_string_screen(16, 5, 0, credits_string, CREDITS_STRING_LENGTH);
 	
+	j = 8;
 	for (i = 0; i < CREDITS_STRINGS_LENGTH; ++i) {
-		write_string_screen(credits_strings_pos[i][0], 
-			credits_strings_pos[i][1], 
-			credits_strings_pos[i][2], 
-			credits_strings[i], credits_strings_pos[i][3]);
+		write_string_screen(credits_strings_pos[i], 
+			j, 
+			0, 
+			credits_strings[i], credits_strings_lengths[i]);
+		j += 2;
 	}
 }
 
