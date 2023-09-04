@@ -4,6 +4,7 @@ FOLDER ?= game
 ifeq ($(OS),Windows_NT)
 CC = cl65.exe
 else
+CC = cl65
 endif
 FLAGS = -m quack.map -tcx16 -Ois --codesize 200 -Cl
 PROG = QUACK.PRG
