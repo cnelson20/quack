@@ -32,6 +32,3 @@
 *.prg
 *.PRG
 
-# used for packaging .zip's
-game/
-
