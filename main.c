@@ -900,6 +900,7 @@ void write_string_screen(unsigned char x, unsigned char y, unsigned char palette
 		__asm__ ("lda %v + 1", s);
 		__asm__ ("sta ptr1 + 1");
 		__asm__ ("ldy #0");
+		__asm__ ("ldx %v", l);
 		loop_write_string_screen:
 		__asm__ ("lda (ptr1), Y");
 		__asm__ ("clc");
@@ -908,7 +909,7 @@ void write_string_screen(unsigned char x, unsigned char y, unsigned char palette
 		__asm__ ("iny");
 		__asm__ ("lda %v", p);
 		__asm__ ("sta $9F23");
-		__asm__ ("dec %v", l);
+		__asm__ ("dex");
 		__asm__ ("bne %g", loop_write_string_screen);
 	}
 }
