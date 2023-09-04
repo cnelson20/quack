@@ -3,8 +3,8 @@
 #include <cx16.h>
 #include <stdlib.h>
 #include <ascii_charmap.h>
-#include "zsound/pcmplayer.h"
-#include "zsound/zsmplayer.h"
+
+#include "zsmkit_wrapper.h"
 #include "main.h"
 #include "routines.h"
 
@@ -40,6 +40,8 @@
 // Sfx constants
 #define KILL_SFX_BANK 2
 #define MOVE_SFX_BANK 4
+#define KILL_SFX_SLOT 0
+#define MOVE_SFX_SLOT 1
 
 unsigned char joystick_num;
 
@@ -108,8 +110,12 @@ int main() {
 	load_sfx();
     setup_title_background();
     setup_display();
-	zsm_init();
-	pcm_set_volume(0x8);
+	
+	//zsm_init();
+	//pcm_set_volume(0x8);
+	zsm_init_engine(1);
+	zcm_setmem(KILL_SFX_SLOT, 0xA000, KILL_SFX_BANK);
+	zcm_setmem(MOVE_SFX_SLOT, 0xA000, MOVE_SFX_BANK);
 
     top_score = 0;
     level = 0;
@@ -1302,11 +1308,13 @@ void load_sfx() {
 }
 
 void play_move_sfx() {
-	pcm_trigger_digi(MOVE_SFX_BANK, 0xA000);
+	//pcm_trigger_digi(MOVE_SFX_BANK, 0xA000);
+	zcm_play(MOVE_SFX_SLOT, 0x8);
 }
 
 void play_kill_sfx() {
-	pcm_trigger_digi(KILL_SFX_BANK, 0xA000);
+	//pcm_trigger_digi(KILL_SFX_BANK, 0xA000);
+	zcm_play(KILL_SFX_SLOT, 0x8);
 }
 
 void setup_title_background() {

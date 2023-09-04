@@ -27,8 +27,9 @@ SUPPORT_RIGHT = 4
 .import _play_kill_sfx
 
 ; Zsound functions
-.import _pcm_play, _zsm_play
-.import _pcm_trigger_digi
+;.import _pcm_play, _zsm_play
+;.import _pcm_trigger_digi
+.import _zcm_play, _zsm_tick
 
 ; Imported variables & arrays
 .import _pill_rot
@@ -85,8 +86,8 @@ jsr RDTIM
 cmp tmp1
 beq :-
 
-jsr _pcm_play
-jsr _zsm_play
+lda #0
+jsr _zsm_tick
 jsr _animate_viruses
 
 lda _game_paused
@@ -530,12 +531,20 @@ _check_matches:
 @i:
     .byte 0
 
+; Define addresses for grid
+.export _fall_grid
+_fall_grid:
+	.res (BOARD_WIDTH * BOARD_HEIGHT)
+.export _grid
+_grid:
+	.res (BOARD_WIDTH * BOARD_HEIGHT)
+
 .export _spare_grid
 _spare_grid:
     .res (BOARD_WIDTH * BOARD_HEIGHT)
 
 .export _support_grid	
-_support_grid := $9100
+_support_grid:
 	.res (BOARD_WIDTH * BOARD_HEIGHT)
 
 .export _score_to_add
@@ -675,7 +684,7 @@ _find_piece_support:
 	rts
 	:
 @no_support:
-		lda $BEEF
+	lda $BEEF
 	lda #NO_SUPPORT
 	rts
 	
@@ -687,10 +696,3 @@ _find_piece_support:
 	.byte 0
 @y2:
 	.byte 0
-
-; Define addresses for grid
-.export _fall_grid
-_fall_grid := $9000
-
-.export _grid
-_grid := $9080

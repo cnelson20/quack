@@ -1,4 +1,3 @@
-
 FOLDER ?= game
 
 ifeq ($(OS),Windows_NT)
@@ -8,13 +7,13 @@ CC = cl65
 endif
 FLAGS = -m quack.map -tcx16 -Ois --codesize 200 -Cl
 PROG = QUACK.PRG
-SOURCES = main.c routines.s
+SOURCES = main.c routines.s zsmkit_wrapper.s
 HEADERS = main.h routines.h
 
 all: $(PROG)
 
 $(PROG): $(SOURCES) $(HEADERS)
-	$(CC) $(FLAGS) -o $(PROG) $(SOURCES) -lib zsound/zsound.lib
+	$(CC) $(FLAGS) -o $(PROG) $(SOURCES) -lib zsmkit/zsmkit.lib -Wl -v
 
 copy:
 	-mkdir $(FOLDER)/
