@@ -892,7 +892,7 @@ void write_string_screen(unsigned char x, unsigned char y, unsigned char palette
     static char *s;
     static unsigned char l;
 	
-	if (*string) {
+	if (str_length != 0 && *string) {
 		p = palette << 4;
 		s = string;
 		l = str_length;
@@ -956,25 +956,27 @@ void setup_settings_background() {
 }
 
 unsigned char credits_strings_lengths[] = {
-	20, // CODER_STRING_LENGTH
+	23, // CODER_STRING_LENGTH
 	12, // ARTIST_STRING_LENGTH
+	24, 
 	0,
 	24, // SOURCE CODE STR LENGTH
 	26, // GH LINK STR LENGTH
 };
 
 unsigned char credits_strings_pos[] = {
-	10, 10, 0, 7, 7,
+	9, 9, 9, 0, 7, 7,
 };
 
 char credits_strings[][32] = {
-	"coding - totodilespy",
+	"game code - totodilespy",
 	"art - AJenbo",
+	"sound code - MooingLemur",
 	"",
 	"source code available at",
-	"github.com/cnelson20/quack",
+	"github.com/cnelson20/quack",	
 };
-#define CREDITS_STRINGS_LENGTH 5
+#define CREDITS_STRINGS_LENGTH 6
 
 void setup_credits_background() {
     static unsigned char i,j;
