@@ -25,6 +25,8 @@ void spawn_viruses();
 
 void inc_pill_rot();
 
+unsigned char get_all_joysticks();
+
 unsigned char check_collision(unsigned char x, unsigned char y, unsigned char rot);
 
 void setup_display();

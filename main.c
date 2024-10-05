@@ -43,8 +43,6 @@
 #define KILL_SFX_SLOT 0
 #define MOVE_SFX_SLOT 1
 
-unsigned char joystick_num;
-
 extern unsigned char grid[BOARD_HEIGHT][BOARD_WIDTH];
 extern unsigned char fall_grid[BOARD_HEIGHT][BOARD_WIDTH];
 extern unsigned char support_grid[BOARD_HEIGHT][BOARD_WIDTH];
@@ -104,7 +102,6 @@ void setup_rand();
 
 int main() {
     ROM_BANK = 0;
-    joystick_num = 0;
 
     load_graphics();
 	load_sfx();
@@ -181,8 +178,6 @@ void game_setup() {
     frame_count = frames_fall_table[frames_fall_index];
 }
 
-
-
 void menu() {
     static unsigned char start_game;
 
@@ -195,7 +190,7 @@ void menu() {
             write_string_screen(14, 23, 0, "PRESS  START", 12);
 
             // wait for no key presses
-            while ((joystick_get(joystick_num) & 0xff) != 0xff) {
+            while ((get_all_joysticks() & 0xff) != 0xff) {
                 animate_menu_background();
                 waitforjiffy();
             }
@@ -203,7 +198,7 @@ void menu() {
             do {
                 static unsigned char i;
                 for (i = 0; i < 5; ++i) {
-                    start_game = start_game & joystick_get(joystick_num);
+                    start_game = start_game & get_all_joysticks();
                     animate_menu_background();
                     waitforjiffy();
                 }
@@ -268,7 +263,7 @@ unsigned char settings_menu() {
     down_cool = 0;
 
     display_settings();
-    while ((joystick_get(joystick_num) & 0xff) != 0xff) {
+    while ((get_all_joysticks() & 0xff) != 0xff) {
         animate_menu_background();
         waitforjiffy();
     }
@@ -297,7 +292,7 @@ unsigned char settings_menu() {
         animate_menu_background();
         waitforjiffy();
 
-        joystick_input = joystick_get(joystick_num);
+        joystick_input = get_all_joysticks();
         if (!right_cool && !(joystick_input & RT_PRESSED)) {
             if (menu_row == 0 && level < 20) {
                 ++level;
@@ -340,7 +335,7 @@ unsigned char settings_menu() {
 			   while (1) {
 				   animate_menu_background();
 				   waitforjiffy();
-				   joystick_input = joystick_get(joystick_num);
+				   joystick_input = get_all_joysticks();
 				   if (!(joystick_input & UP_PRESSED)) {
 					   break;
 				   }
@@ -397,8 +392,8 @@ void results_screen() {
     }
     write_string_screen(17, 20, 0, "PRESS", 5);
     write_string_screen(17, 21, 0, "START", 5);
-    while (joystick_get(joystick_num) & ST_PRESSED) { waitforjiffy(); }
-    while (!(joystick_get(joystick_num) & ST_PRESSED)) { waitforjiffy(); }
+    while (get_all_joysticks() & ST_PRESSED) { waitforjiffy(); }
+    while (!(get_all_joysticks() & ST_PRESSED)) { waitforjiffy(); }
 }
 
 void game_loop() {
@@ -416,13 +411,13 @@ void game_loop() {
         if (game_paused) {
             clear_pillbottle_interior();
             write_string_screen(17, 15, 0, "PAUSED", 6);
-            while (!(joystick_get(joystick_num) & ST_PRESSED)) {
+            while (!(get_all_joysticks() & ST_PRESSED)) {
                 waitforjiffy();
             }
-            while (joystick_get(joystick_num) & ST_PRESSED) {
+            while (get_all_joysticks() & ST_PRESSED) {
                 waitforjiffy();
             }
-            while (!(joystick_get(joystick_num) & ST_PRESSED)) {
+            while (!(get_all_joysticks() & ST_PRESSED)) {
                 waitforjiffy();
             }
             waitforjiffy();
@@ -460,7 +455,7 @@ void game_loop() {
             draw_playfield();
 
             for (i = 0; i < 1; ++i) {
-                joystick_input = joystick_get(joystick_num);
+                joystick_input = get_all_joysticks();
                 if (!(joystick_input & ST_PRESSED)) {
                     game_paused = 1;
                 }
@@ -468,7 +463,7 @@ void game_loop() {
             }
         } else {
             static unsigned char joystick_input;
-            joystick_input = joystick_get(joystick_num);
+            joystick_input = get_all_joysticks();
             POKEW(0x0a, joystick_input);
 
             if (!right_cool && !(joystick_input & RT_PRESSED)) {
@@ -783,6 +778,9 @@ void wait_cascade_fall_frames() {
 }
 */
 
+unsigned char get_all_joysticks() {
+	return joystick_get(0) & joystick_get(1) & joystick_get(2);
+}
 
 void setup_display() {
     VERA.control = 0;
