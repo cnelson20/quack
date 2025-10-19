@@ -779,7 +779,7 @@ void wait_cascade_fall_frames() {
 */
 
 unsigned char get_all_joysticks() {
-	return joystick_get(0) & joystick_get(1) & joystick_get(2);
+	return joystick_get(1) & joystick_get(2) & joystick_get(0);
 }
 
 void setup_display() {
